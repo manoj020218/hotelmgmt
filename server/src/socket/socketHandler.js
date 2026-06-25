@@ -4,12 +4,16 @@ function initSocket(io) {
   _io = io;
 
   io.on('connection', (socket) => {
-    socket.on('join:hotel', (hotelId) => {
-      socket.join(`hotel:${hotelId}`);
+    socket.on('join:hotel', ({ hotelId } = {}) => {
+      if (hotelId) socket.join(`hotel:${hotelId}`);
     });
 
-    socket.on('join:order', (orderId) => {
-      socket.join(`order:${orderId}`);
+    socket.on('join:table', ({ tableId } = {}) => {
+      if (tableId) socket.join(`table:${tableId}`);
+    });
+
+    socket.on('join:order', ({ orderId } = {}) => {
+      if (orderId) socket.join(`order:${orderId}`);
     });
   });
 }

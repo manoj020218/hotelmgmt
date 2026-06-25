@@ -19,13 +19,13 @@ async function getDashboard(hotelId, period) {
 
   const [revenueAgg, revenueByDayAgg] = await Promise.all([
     Order.aggregate([
-      { $match: { hotelId: hId, status: 'served', createdAt: { $gte: start, $lte: end } } },
+      { $match: { hotelId: hId, status: 'served', servedAt: { $gte: start, $lte: end } } },
       { $group: { _id: null, total: { $sum: '$bill.total' } } },
     ]),
     Order.aggregate([
-      { $match: { hotelId: hId, status: 'served', createdAt: { $gte: start, $lte: end } } },
+      { $match: { hotelId: hId, status: 'served', servedAt: { $gte: start, $lte: end } } },
       { $group: {
-          _id:    { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          _id:    { $dateToString: { format: '%Y-%m-%d', date: '$servedAt' } },
           amount: { $sum: '$bill.total' },
         }
       },
@@ -47,7 +47,7 @@ async function getDashboard(hotelId, period) {
     : 0;
 
   const topItems = await Order.aggregate([
-    { $match: { hotelId: hId, status: 'served', createdAt: { $gte: start, $lte: end } } },
+    { $match: { hotelId: hId, status: 'served', servedAt: { $gte: start, $lte: end } } },
     { $unwind: '$items' },
     { $group: {
         _id:         '$items.menuItemId',
@@ -100,7 +100,7 @@ async function getDashboard(hotelId, period) {
       $match: {
         hotelId:          hId,
         status:           'served',
-        createdAt:        { $gte: start, $lte: end },
+        servedAt:         { $gte: start, $lte: end },
         assignedWaiterId: { $ne: null },
       },
     },
@@ -135,12 +135,12 @@ async function getDashboard(hotelId, period) {
     { $sort: { served: -1 } },
   ]);
 
-  const sessionAgg = await Order.aggregate([
+  const tableAgg = await Order.aggregate([
     { $match: { hotelId: hId, createdAt: { $gte: start, $lte: end } } },
-    { $group: { _id: '$sessionId', count: { $sum: 1 } } },
+    { $group: { _id: '$tableId', count: { $sum: 1 } } },
   ]);
-  const repeatCustomerRate = sessionAgg.length
-    ? Math.round(sessionAgg.filter(s => s.count > 1).length / sessionAgg.length * 100)
+  const repeatCustomerRate = tableAgg.length
+    ? Math.round(tableAgg.filter(t => t.count > 1).length / tableAgg.length * 100)
     : 0;
 
   return {
@@ -167,9 +167,9 @@ async function getRevenue(hotelId, from, to, groupBy = 'day') {
   else                          format = '%Y-%m-%d';
 
   const data = await Order.aggregate([
-    { $match: { hotelId: hId, status: 'served', createdAt: { $gte: fromDate, $lte: toDate } } },
+    { $match: { hotelId: hId, status: 'served', servedAt: { $gte: fromDate, $lte: toDate } } },
     { $group: {
-        _id:        { $dateToString: { format, date: '$createdAt' } },
+        _id:        { $dateToString: { format, date: '$servedAt' } },
         revenue:    { $sum: '$bill.total' },
         orderCount: { $sum: 1 },
       }

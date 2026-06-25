@@ -80,7 +80,7 @@ describe('PF07 - Waiter App', () => {
       </MemoryRouter>
     )
 
-    fireEvent.change(screen.getByPlaceholderText(/phone/i), { target: { value: '9999999999' } })
+    fireEvent.change(screen.getByPlaceholderText(/provided by your manager/i), { target: { value: 'hotel-id-1' } })
     fireEvent.change(screen.getByPlaceholderText(/pin/i),   { target: { value: '1234' } })
     fireEvent.submit(screen.getByRole('button', { name: /sign in/i }).closest('form'))
 
@@ -99,7 +99,7 @@ describe('PF07 - Waiter App', () => {
       </MemoryRouter>
     )
 
-    fireEvent.change(screen.getByPlaceholderText(/phone/i), { target: { value: '9999999999' } })
+    fireEvent.change(screen.getByPlaceholderText(/provided by your manager/i), { target: { value: 'hotel-id-1' } })
     fireEvent.change(screen.getByPlaceholderText(/pin/i),   { target: { value: '0000' } })
     fireEvent.submit(screen.getByRole('button', { name: /sign in/i }).closest('form'))
 

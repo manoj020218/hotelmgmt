@@ -9,7 +9,7 @@ const { emitToHotel } = require('../socket/socketHandler');
 
 // ── QR generator helper ───────────────────────────────────────────────────────
 async function generateTableQR(hotelId, tableId, qrToken) {
-  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const frontendUrl = (process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
   const qrContent   = `${frontendUrl}/menu?hotel=${hotelId}&table=${qrToken}`;
 
   const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads');
@@ -100,7 +100,11 @@ async function updateTableStatus(req, res, next) {
       update.reservedFor = '';
     }
 
-    const table = await Table.findByIdAndUpdate(req.params.tableId, update, { new: true });
+    const table = await Table.findOneAndUpdate(
+      { _id: req.params.tableId, hotelId: req.user.hotelId },
+      update,
+      { new: true }
+    );
     if (!table) return res.status(404).json({ error: 'Table not found' });
 
     emitToHotel(table.hotelId, 'table:status', {

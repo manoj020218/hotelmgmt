@@ -1,7 +1,7 @@
 import api from './axios'
 
-export const getPaymentByOrder = (orderId) =>
-  api.get(`/payments/order/${orderId}`).then(r => r.data)
+export const getPaymentByOrder = (orderId, sessionId) =>
+  api.get(`/payments/order/${orderId}`, { params: sessionId ? { sessionId } : {} }).then(r => r.data)
 
 export const markPaymentReceived = (paymentId, body) =>
   api.patch(`/payments/${paymentId}/mark-received`, body).then(r => r.data)

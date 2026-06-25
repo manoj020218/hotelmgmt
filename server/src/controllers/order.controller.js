@@ -9,7 +9,7 @@ const Payment  = require('../models/Payment');
 
 const { calculateBill }          = require('../services/gst.service');
 const { assignWaiter, releaseOrder } = require('../services/waiterAssign.service');
-const { emitToHotel }            = require('../socket/socketHandler');
+const { emitToHotel, emitToOrder } = require('../socket/socketHandler');
 const { sendToToken, sendToTopic } = require('../services/fcm.service');
 
 // ── POST /api/orders ─────────────────────────────────────────────────────────
@@ -24,8 +24,16 @@ async function placeOrder(req, res, next) {
     const table = await Table.findOne({ qrToken: tableQrToken });
     if (!table) return res.status(404).json({ error: 'Invalid QR token' });
 
+    if (table.status === 'occupied') {
+      return res.status(409).json({ error: 'Table already has an active order' });
+    }
+
     const hotel = await Hotel.findById(table.hotelId);
     if (!hotel) return res.status(404).json({ error: 'Hotel not found' });
+
+    if (!hotel.settings.kitchenOpen) {
+      return res.status(503).json({ error: 'Kitchen is closed — not accepting orders' });
+    }
 
     // Validate menu items
     const menuItemIds = reqItems.map(i => i.menuItemId);
@@ -86,13 +94,24 @@ async function placeOrder(req, res, next) {
       }
     }
 
-    // Socket emit
-    emitToHotel(table.hotelId, 'order:new', {
-      orderId:     order._id,
-      tableNumber: table.tableNumber,
-      bill,
-      itemCount:   orderItems.length,
-    });
+    // Socket emit — clients expect { order } with full order object
+    const orderForEmit = order.toObject();
+    if (assignedWaiter) {
+      orderForEmit.assignedWaiterId = { _id: assignedWaiter._id, name: assignedWaiter.name };
+      orderForEmit.status    = 'assigned';
+      orderForEmit.assignedAt = new Date();
+    }
+    emitToHotel(table.hotelId, 'order:new', { order: orderForEmit });
+
+    if (assignedWaiter) {
+      const assignPayload = {
+        orderId:    order._id,
+        waiterId:   assignedWaiter._id,
+        waiterName: assignedWaiter.name,
+      };
+      emitToHotel(table.hotelId, 'order:assigned', assignPayload);
+      emitToOrder(order._id,     'order:assigned', assignPayload);
+    }
 
     // FCM (fire-and-forget, never throw)
     sendToTopic(hotel.fcmTopics && hotel.fcmTopics.admin, { title: 'New Order', body: `Table ${table.tableNumber}` }, {}).catch(() => {});
@@ -156,13 +175,23 @@ async function getOrderByTable(req, res, next) {
 // ── PATCH /api/orders/:orderId/modify ────────────────────────────────────────
 async function modifyOrder(req, res, next) {
   try {
-    const { addItems } = req.body;
+    const { addItems, sessionId } = req.body;
     if (!addItems || !addItems.length) {
       return res.status(400).json({ error: 'addItems is required' });
     }
 
     const order = await Order.findById(req.params.orderId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Require sessionId (customer) or a valid JWT (staff)
+    const authHeader = req.headers.authorization;
+    let isAuth = false;
+    if (authHeader?.startsWith('Bearer ')) {
+      try { jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET); isAuth = true; } catch {}
+    }
+    if (!isAuth && sessionId !== order.sessionId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     if (!['placed', 'assigned'].includes(order.status)) {
       return res.status(400).json({ error: 'Order cannot be modified in current status' });
@@ -239,20 +268,29 @@ async function updateStatus(req, res, next) {
 
       await releaseOrder(order.assignedWaiterId, order._id);
 
-      payment = await Payment.create({
-        hotelId:     order.hotelId,
-        orderId:     order._id,
-        tableNumber: order.tableNumber,
-        amount:      order.bill.total,
-        status:      'pending',
-      });
-      order.paymentId = payment._id;
+      if (!order.paymentId) {
+        payment = await Payment.create({
+          hotelId:     order.hotelId,
+          orderId:     order._id,
+          tableNumber: order.tableNumber,
+          amount:      order.bill.total,
+          status:      'pending',
+        });
+        order.paymentId = payment._id;
+      }
 
       emitToHotel(order.hotelId, 'order:served', {
         orderId:     order._id,
         tableNumber: order.tableNumber,
       });
-    } else if (status === 'rejected') {
+    } else if (status === 'rejected' || status === 'cancelled') {
+      await Table.findByIdAndUpdate(order.tableId, {
+        status:         'available',
+        currentOrderId: null,
+      });
+
+      await releaseOrder(order.assignedWaiterId, order._id);
+
       emitToHotel(order.hotelId, 'order:rejected', {
         orderId:         order._id,
         rejectionReason: rejectionReason || '',

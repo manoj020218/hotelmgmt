@@ -3,8 +3,8 @@ import api from './axios'
 export const placeOrder = (data) =>
   api.post('/orders', data).then(r => r.data)
 
-export const getOrder = (orderId) =>
-  api.get(`/orders/${orderId}`).then(r => r.data)
+export const getOrder = (orderId, sessionId) =>
+  api.get(`/orders/${orderId}`, { params: sessionId ? { sessionId } : {} }).then(r => r.data)
 
 export const getOrderByTable = (tableQrToken) =>
   api.get(`/orders/table/${tableQrToken}`).then(r => r.data)

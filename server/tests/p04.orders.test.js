@@ -271,7 +271,7 @@ describe('P04 - Orders', () => {
 
     const res = await request(app)
       .patch(`/api/orders/${orderRes.body.orderId}/modify`)
-      .send({ addItems: [{ menuItemId: gstItem2._id, quantity: 2 }] }); // +100
+      .send({ addItems: [{ menuItemId: gstItem2._id, quantity: 2 }], sessionId: orderRes.body.sessionId }); // +100
 
     expect(res.status).toBe(200);
     expect(res.body.order.items).toHaveLength(2);
@@ -294,7 +294,7 @@ describe('P04 - Orders', () => {
 
     const res = await request(app)
       .patch(`/api/orders/${orderRes.body.orderId}/modify`)
-      .send({ addItems: [{ menuItemId: gstItem2._id, quantity: 1 }] });
+      .send({ addItems: [{ menuItemId: gstItem2._id, quantity: 1 }], sessionId: orderRes.body.sessionId });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/window/i);
@@ -315,7 +315,7 @@ describe('P04 - Orders', () => {
 
     const res = await request(app)
       .patch(`/api/orders/${orderRes.body.orderId}/modify`)
-      .send({ addItems: [{ menuItemId: gstItem2._id, quantity: 1 }] });
+      .send({ addItems: [{ menuItemId: gstItem2._id, quantity: 1 }], sessionId: orderRes.body.sessionId });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/status/i);

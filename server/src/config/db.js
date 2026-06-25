@@ -20,4 +20,4 @@ async function connectDB(retries = MAX_RETRIES, delayMs = RETRY_DELAY_MS) {
   }
 }
 
-module.exports = connectDB;
+module.exports = { connectDB };

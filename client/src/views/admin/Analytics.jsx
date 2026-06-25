@@ -115,7 +115,7 @@ export default function Analytics() {
         <h3 className="text-sm font-semibold text-text mb-3">Revenue by Day</h3>
         <BarChart
           data={revenue}
-          labelKey="_id"
+          labelKey="date"
           valueKey="revenue"
           color="bg-accent"
         />

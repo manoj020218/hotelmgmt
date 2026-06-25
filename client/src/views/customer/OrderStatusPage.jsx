@@ -83,7 +83,7 @@ export default function OrderStatusPage() {
   // Fetch initial order
   useEffect(() => {
     if (!orderId) return
-    getOrder(orderId)
+    getOrder(orderId, sessionId)
       .then(data => setOrder(data.order))
       .catch(err => setError(err.response?.data?.error ?? 'Could not load order'))
       .finally(() => setLoading(false))
@@ -220,7 +220,10 @@ export default function OrderStatusPage() {
             data-testid="add-items-btn"
             variant="secondary"
             fullWidth
-            onClick={() => navigate(`/menu?hotel=${order.hotelId}&table=${sessionStorage.getItem('tableToken')}`)}
+            onClick={() => {
+              sessionStorage.setItem('modifyOrderId', orderId)
+              navigate(`/menu?hotel=${order.hotelId}&table=${sessionStorage.getItem('tableToken')}`)
+            }}
           >
             + Add More Items
           </Button>

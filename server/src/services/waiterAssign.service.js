@@ -31,7 +31,7 @@ async function releaseOrder(waiterId, orderId) {
   if (!waiter) return null;
 
   waiter.activeOrderIds = waiter.activeOrderIds.filter(id => !id.equals(orderId));
-  if (waiter.activeOrderIds.length < BUSY_THRESHOLD) {
+  if (waiter.activeOrderIds.length < BUSY_THRESHOLD && !waiter.manuallyOffline) {
     waiter.available = true;
   }
   await waiter.save();

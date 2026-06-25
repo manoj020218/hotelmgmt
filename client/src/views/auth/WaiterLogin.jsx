@@ -6,7 +6,7 @@ import { useAuthStore } from '../../stores/authStore'
 import api from '../../api/axios'
 
 export default function WaiterLogin() {
-  const [phone,   setPhone]   = useState('')
+  const [hotelId, setHotelId] = useState('')
   const [pin,     setPin]     = useState('')
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
@@ -19,7 +19,7 @@ export default function WaiterLogin() {
     setError('')
     setLoading(true)
     try {
-      const res = await api.post('/auth/waiter/login', { phone, pin })
+      const res = await api.post('/auth/waiter/login', { hotelId, pin })
       setAuth(res.data)
       navigate('/waiter', { replace: true })
     } catch (err) {
@@ -39,11 +39,11 @@ export default function WaiterLogin() {
 
         <form onSubmit={handleSubmit} className="bg-bgCard rounded-2xl border border-border p-6 space-y-4">
           <Input
-            label="Phone"
-            type="tel"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="Your registered phone"
+            label="Hotel ID"
+            type="text"
+            value={hotelId}
+            onChange={e => setHotelId(e.target.value)}
+            placeholder="Provided by your manager"
             required
             autoFocus
           />

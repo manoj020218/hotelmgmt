@@ -23,7 +23,7 @@ async function getKdsOrders(req, res, next) {
 // ── PATCH /api/kds/:orderId/accept ────────────────────────────────────────────
 async function acceptOrder(req, res, next) {
   try {
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findOne({ _id: req.params.orderId, hotelId: req.user.hotelId });
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
     order.kdsStatus = 'accepted';

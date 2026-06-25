@@ -44,15 +44,19 @@ async function createFeedback(req, res, next) {
       }
     }
 
-    // Update MenuItem avgRating for each ordered item
+    // Update MenuItem avgRating for each ordered item using proper rolling average
     if (ratings.food && order.items?.length) {
       for (const item of order.items) {
         const mi = await MenuItem.findById(item.menuItemId);
         if (mi) {
-          const newAvg = mi.stats.avgRating > 0
-            ? Math.round(((mi.stats.avgRating + ratings.food) / 2) * 100) / 100
-            : ratings.food;
-          await MenuItem.findByIdAndUpdate(item.menuItemId, { 'stats.avgRating': newAvg });
+          const count  = mi.stats.ratingCount ?? 0;
+          const newAvg = Math.round(
+            ((mi.stats.avgRating * count + ratings.food) / (count + 1)) * 100
+          ) / 100;
+          await MenuItem.findByIdAndUpdate(item.menuItemId, {
+            'stats.avgRating':   newAvg,
+            'stats.ratingCount': count + 1,
+          });
         }
       }
     }

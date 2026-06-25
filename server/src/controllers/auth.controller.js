@@ -91,13 +91,16 @@ async function kitchenLogin(req, res, next) {
     }
     if (!matched) return res.status(401).json({ error: 'Invalid PIN' });
 
-    const accessToken = signAccess(matched._id, matched.role, matched.hotelId);
+    const accessToken  = signAccess(matched._id, matched.role, matched.hotelId);
+    const refreshToken = signRefresh(matched._id);
 
-    matched.lastSeen = new Date();
+    matched.refreshToken = refreshToken;
+    matched.lastSeen     = new Date();
     await matched.save();
 
     return res.json({
       accessToken,
+      refreshToken,
       user: { id: matched._id, name: matched.name, role: matched.role, hotelId: matched.hotelId },
     });
   } catch (err) {

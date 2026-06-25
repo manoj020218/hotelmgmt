@@ -1,4 +1,5 @@
 const MenuItem = require('../models/MenuItem');
+const Hotel    = require('../models/Hotel');
 const { getPublicUrl } = require('../config/storage');
 
 async function adminGetAll(req, res, next) {
@@ -13,14 +14,24 @@ async function adminGetAll(req, res, next) {
 
 async function getMenu(req, res, next) {
   try {
-    const filter = { hotelId: req.params.hotelId };
+    const { hotelId } = req.params;
+    const filter = { hotelId };
     if (req.query.category) filter.category = req.query.category;
     if (req.query.available !== undefined) filter.available = req.query.available === 'true';
 
-    const items = await MenuItem.find(filter)
-      .select('-stats')
-      .sort({ category: 1, sortOrder: 1, name: 1 });
-    res.json({ items });
+    const [items, hotel] = await Promise.all([
+      MenuItem.find(filter).select('-stats').sort({ category: 1, sortOrder: 1, name: 1 }),
+      Hotel.findById(hotelId).select('name settings'),
+    ]);
+
+    const categories = [...new Set(items.map(i => i.category).filter(Boolean))];
+
+    res.json({
+      items,
+      categories,
+      hotelName:   hotel?.name   ?? '',
+      kitchenOpen: hotel?.settings?.kitchenOpen ?? true,
+    });
   } catch (err) {
     next(err);
   }
@@ -78,7 +89,24 @@ async function updateItem(req, res, next) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
 
-    const item = await MenuItem.findByIdAndUpdate(req.params.itemId, updates, { new: true, runValidators: true });
+    // Parse multipart/form-data fields that arrive as strings
+    if (typeof updates.customizationOptions === 'string') {
+      try { updates.customizationOptions = JSON.parse(updates.customizationOptions); } catch {}
+    }
+    if (updates.isVeg !== undefined) {
+      updates.isVeg = updates.isVeg === 'true' || updates.isVeg === true;
+    }
+    if (updates.available !== undefined) {
+      updates.available = updates.available !== 'false' && updates.available !== false;
+    }
+    if (updates.price !== undefined) updates.price = parseFloat(updates.price);
+    if (req.file) updates.photoUrl = getPublicUrl('menu', req.file.filename);
+
+    const item = await MenuItem.findOneAndUpdate(
+      { _id: req.params.itemId, hotelId: req.user.hotelId },
+      updates,
+      { new: true, runValidators: true }
+    );
     if (!item) return res.status(404).json({ error: 'Item not found' });
     res.json({ item });
   } catch (err) {
@@ -91,8 +119,8 @@ async function toggleAvailability(req, res, next) {
     const { available } = req.body;
     if (available === undefined) return res.status(400).json({ error: 'available field required' });
 
-    const item = await MenuItem.findByIdAndUpdate(
-      req.params.itemId,
+    const item = await MenuItem.findOneAndUpdate(
+      { _id: req.params.itemId, hotelId: req.user.hotelId },
       { available },
       { new: true }
     );
@@ -105,7 +133,7 @@ async function toggleAvailability(req, res, next) {
 
 async function deleteItem(req, res, next) {
   try {
-    const item = await MenuItem.findByIdAndDelete(req.params.itemId);
+    const item = await MenuItem.findOneAndDelete({ _id: req.params.itemId, hotelId: req.user.hotelId });
     if (!item) return res.status(404).json({ error: 'Item not found' });
     res.json({ message: 'Item deleted' });
   } catch (err) {

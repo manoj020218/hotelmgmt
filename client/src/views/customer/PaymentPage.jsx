@@ -18,7 +18,8 @@ export default function PaymentPage() {
 
   useEffect(() => {
     if (!orderId) return
-    getPaymentByOrder(orderId)
+    const sessionId = JSON.parse(sessionStorage.getItem('lastOrder') ?? '{}').sessionId
+    getPaymentByOrder(orderId, sessionId)
       .then(d => setData(d))
       .catch(err => setError(err.response?.data?.error ?? 'Could not load payment'))
       .finally(() => setLoading(false))

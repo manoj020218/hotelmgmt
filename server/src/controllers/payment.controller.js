@@ -2,7 +2,7 @@ const jwt     = require('jsonwebtoken');
 const Payment = require('../models/Payment');
 const Order   = require('../models/Order');
 const Hotel   = require('../models/Hotel');
-const { emitToHotel }   = require('../socket/socketHandler');
+const { emitToHotel, emitToOrder } = require('../socket/socketHandler');
 const { sendToTopic }   = require('../services/fcm.service');
 const { generateReceipt } = require('../services/pdf.service');
 
@@ -57,7 +57,7 @@ async function markReceived(req, res, next) {
       return res.status(400).json({ error: `Invalid payment method: ${method}` });
     }
 
-    const payment = await Payment.findById(req.params.paymentId);
+    const payment = await Payment.findOne({ _id: req.params.paymentId, hotelId: req.user.hotelId });
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
 
     payment.status     = 'received';
@@ -82,12 +82,16 @@ async function markReceived(req, res, next) {
 
     await payment.save();
 
-    emitToHotel(payment.hotelId, 'payment:received', {
+    const paymentPayload = {
       paymentId:   payment._id,
+      orderId:     payment.orderId,
       amount:      payment.amount,
       method,
       tableNumber: payment.tableNumber,
-    });
+      receiptUrl,
+    };
+    emitToHotel(payment.hotelId, 'payment:received', paymentPayload);
+    emitToOrder(payment.orderId,  'payment:received', paymentPayload);
 
     if (hotel && hotel.fcmTopics && hotel.fcmTopics.admin) {
       sendToTopic(hotel.fcmTopics.admin, {

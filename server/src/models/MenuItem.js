@@ -21,6 +21,7 @@ const menuItemSchema = new mongoose.Schema({
   stats: {
     totalOrders: { type: Number, default: 0 },
     avgRating:   { type: Number, default: 0 },
+    ratingCount: { type: Number, default: 0 },
   },
   sortOrder: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },

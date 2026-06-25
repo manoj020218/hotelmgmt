@@ -54,8 +54,11 @@ async function updateWaiter(req, res, next) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
 
-    const user = await User.findByIdAndUpdate(req.params.waiterId, updates, { new: true })
-      .select('-passwordHash -pin -refreshToken');
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.waiterId, hotelId: req.user.hotelId },
+      updates,
+      { new: true }
+    ).select('-passwordHash -pin -refreshToken');
     if (!user) return res.status(404).json({ error: 'Waiter not found' });
 
     res.json({ user });
@@ -70,9 +73,9 @@ async function toggleAvailability(req, res, next) {
     const { available } = req.body;
     if (available === undefined) return res.status(400).json({ error: 'available field required' });
 
-    const user = await User.findByIdAndUpdate(
-      req.params.waiterId,
-      { available },
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.waiterId, hotelId: req.user.hotelId },
+      { available, manuallyOffline: !available },
       { new: true }
     ).select('-passwordHash -pin -refreshToken');
     if (!user) return res.status(404).json({ error: 'Waiter not found' });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCartStore } from '../../stores/cartStore'
-import { placeOrder } from '../../api/order.api'
+import { placeOrder, modifyOrder } from '../../api/order.api'
 import { Button } from '../../components/Button'
 import { Spinner } from '../../components/Spinner'
 
@@ -38,23 +38,30 @@ export default function CartPage() {
     }
     setLoading(true)
     setError('')
+
+    const modifyOrderId = sessionStorage.getItem('modifyOrderId')
+
     try {
-      const payload = {
-        tableQrToken: tableToken,
-        items: cartItems.map(i => ({
-          menuItemId:     i.menuItemId,
-          quantity:       i.quantity,
-          customizations: i.customizations,
-          specialNote:    i.specialNote,
-        })),
+      const lineItems = cartItems.map(i => ({
+        menuItemId:     i.menuItemId,
+        quantity:       i.quantity,
+        customizations: i.customizations,
+        specialNote:    i.specialNote,
+      }))
+
+      if (modifyOrderId) {
+        await modifyOrder(modifyOrderId, lineItems)
+        sessionStorage.removeItem('modifyOrderId')
+        clearCart()
+        navigate(`/order/${modifyOrderId}`, { replace: true })
+      } else {
+        const data = await placeOrder({ tableQrToken: tableToken, items: lineItems })
+        sessionStorage.setItem('lastOrder', JSON.stringify({ orderId: data.orderId, sessionId: data.sessionId }))
+        clearCart()
+        navigate(`/order/${data.orderId}`, { state: { sessionId: data.sessionId, bill: data.bill } })
       }
-      const data = await placeOrder(payload)
-      // Persist for repeat order banner
-      sessionStorage.setItem('lastOrder', JSON.stringify({ orderId: data.orderId, sessionId: data.sessionId }))
-      clearCart()
-      navigate(`/order/${data.orderId}`, { state: { sessionId: data.sessionId, bill: data.bill } })
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Failed to place order — please try again')
+      setError(err.response?.data?.error ?? 'Failed — please try again')
     } finally {
       setLoading(false)
     }
@@ -169,7 +176,7 @@ export default function CartPage() {
           onClick={handlePlaceOrder}
           disabled={cartItems.length === 0}
         >
-          Place Order · ₹{roundTo2(subtotal)}
+          {sessionStorage.getItem('modifyOrderId') ? 'Add to Order' : 'Place Order'} · ₹{roundTo2(subtotal)}
         </Button>
       </div>
     </div>
