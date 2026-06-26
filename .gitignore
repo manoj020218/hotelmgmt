@@ -39,3 +39,7 @@ coverage/
 
 # Claude session data
 .claude/
+
+# Firebase service account — contains private key, NEVER commit
+*firebase-adminsdk*.json
+google/

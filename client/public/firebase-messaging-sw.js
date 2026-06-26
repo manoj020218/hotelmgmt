@@ -4,11 +4,11 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-comp
 // Config injected at build time via vite-plugin-pwa injectManifest or hard-coded
 // for now. Replace with real values at deploy time.
 firebase.initializeApp({
-  apiKey:            self.__FIREBASE_API_KEY__            || '',
-  authDomain:        self.__FIREBASE_AUTH_DOMAIN__        || '',
-  projectId:         self.__FIREBASE_PROJECT_ID__         || '',
-  messagingSenderId: self.__FIREBASE_MESSAGING_SENDER_ID__ || '',
-  appId:             self.__FIREBASE_APP_ID__             || '',
+  apiKey:            'AIzaSyAcCDBEaZPcqHTodcSb1N2OemF_kchLn7c',
+  authDomain:        'hotelqr-8be21.firebaseapp.com',
+  projectId:         'hotelqr-8be21',
+  messagingSenderId: '803577992717',
+  appId:             '1:803577992717:web:2bc7562cb49118d6ad2744',
 })
 
 const messaging = firebase.messaging()
