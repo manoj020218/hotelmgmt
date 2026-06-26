@@ -9,7 +9,7 @@ const { emitToHotel } = require('../socket/socketHandler');
 
 // ── QR generator helper ───────────────────────────────────────────────────────
 async function generateTableQR(hotelId, tableId, qrToken) {
-  const frontendUrl = (process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const frontendUrl = (process.env.FRONTEND_URL || process.env.VPS_PUBLIC_URL || 'http://localhost:5173').replace(/\/$/, '');
   const qrContent   = `${frontendUrl}/menu?hotel=${hotelId}&table=${qrToken}`;
 
   const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../../uploads');

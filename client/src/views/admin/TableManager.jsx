@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import QRCode from 'qrcode'
 import { getAdminTables, createTable, updateTableStatus, getTableQR } from '../../api/table.api'
+import { useAuthStore } from '../../stores/authStore'
 import { Button } from '../../components/Button'
 import { Spinner } from '../../components/Spinner'
 
@@ -10,7 +12,36 @@ const STATUS_COLORS = {
   blocked:   'border-red/40 bg-red/10 text-red',
 }
 
-function TableCard({ table, onStatusChange, onDownloadQR }) {
+function QRModal({ tableNumber, dataUrl, onClose }) {
+  const handleDownload = () => {
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = `table-${tableNumber}-qr.png`
+    a.click()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-bgCard border border-border rounded-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full"
+        onClick={e => e.stopPropagation()}
+      >
+        <p className="font-bold text-text text-lg">Table {tableNumber} — QR Code</p>
+        <img src={dataUrl} alt={`QR for table ${tableNumber}`} className="w-56 h-56 rounded-xl" />
+        <p className="text-xs text-textMuted text-center">Customer scans this to view the menu</p>
+        <div className="flex gap-3 w-full">
+          <Button variant="secondary" fullWidth onClick={onClose}>Close</Button>
+          <Button fullWidth onClick={handleDownload}>Download</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TableCard({ table, onStatusChange, onShowQR, qrLoading }) {
   return (
     <div
       data-testid={`table-card-${table._id}`}
@@ -35,11 +66,13 @@ function TableCard({ table, onStatusChange, onDownloadQR }) {
           ))}
         </select>
         <button
+          type="button"
           data-testid={`qr-btn-${table._id}`}
-          onClick={() => onDownloadQR(table._id)}
-          className="px-2 py-1 text-xs bg-bgElevated border border-border rounded-lg text-textMuted hover:text-text"
+          onClick={() => onShowQR(table._id, table.tableNumber)}
+          disabled={qrLoading === table._id}
+          className="px-2 py-1 text-xs bg-bgElevated border border-border rounded-lg text-textMuted hover:text-text disabled:opacity-50"
         >
-          QR
+          {qrLoading === table._id ? '…' : 'QR'}
         </button>
       </div>
       {table.notes?.length > 0 && (
@@ -54,11 +87,15 @@ function TableCard({ table, onStatusChange, onDownloadQR }) {
 }
 
 export default function TableManager() {
-  const [tables,  setTables]  = useState([])
-  const [loading, setLoading] = useState(true)
-  const [newNum,  setNewNum]  = useState('')
-  const [newCap,  setNewCap]  = useState('4')
-  const [adding,  setAdding]  = useState(false)
+  const [tables,    setTables]    = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [newNum,    setNewNum]     = useState('')
+  const [newCap,    setNewCap]     = useState('4')
+  const [adding,    setAdding]     = useState(false)
+  const [qrLoading, setQrLoading] = useState(null)
+  const [qrModal,   setQrModal]   = useState(null)
+
+  const hotelId = useAuthStore(s => s.user?.hotelId)
 
   useEffect(() => {
     getAdminTables()
@@ -74,11 +111,22 @@ export default function TableManager() {
     } catch {}
   }
 
-  const handleDownloadQR = async (tableId) => {
+  const handleShowQR = async (tableId, tableNumber) => {
+    setQrLoading(tableId)
     try {
-      const data = await getTableQR(tableId)
-      if (data.qrCodeUrl) window.open(data.qrCodeUrl, '_blank')
-    } catch {}
+      const data    = await getTableQR(tableId)
+      const token   = data.qrToken
+      if (!token) return
+
+      const origin  = window.location.origin
+      const content = `${origin}/menu?hotel=${hotelId}&table=${token}`
+      const dataUrl = await QRCode.toDataURL(content, { width: 400, margin: 2 })
+      setQrModal({ dataUrl, tableNumber })
+    } catch (err) {
+      console.error('[QR]', err)
+    } finally {
+      setQrLoading(null)
+    }
   }
 
   const handleAddTable = async () => {
@@ -132,10 +180,19 @@ export default function TableManager() {
             key={table._id}
             table={table}
             onStatusChange={handleStatusChange}
-            onDownloadQR={handleDownloadQR}
+            onShowQR={handleShowQR}
+            qrLoading={qrLoading}
           />
         ))}
       </div>
+
+      {qrModal && (
+        <QRModal
+          tableNumber={qrModal.tableNumber}
+          dataUrl={qrModal.dataUrl}
+          onClose={() => setQrModal(null)}
+        />
+      )}
     </div>
   )
 }
