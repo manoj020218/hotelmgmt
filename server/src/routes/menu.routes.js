@@ -17,7 +17,7 @@ router.post('/', auth, guard('admin'), menuUpload.single('photo'), createItem);
 
 // More-specific /:itemId/availability BEFORE /:itemId to avoid shadowing
 router.patch('/:itemId/availability', auth, guard('admin'), toggleAvailability);
-router.patch('/:itemId', auth, guard('admin'), updateItem);
+router.patch('/:itemId', auth, guard('admin'), menuUpload.single('photo'), updateItem);
 
 router.delete('/:itemId', auth, guard('admin'), deleteItem);
 

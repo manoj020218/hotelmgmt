@@ -21,7 +21,5 @@ export const updatePayment = (data) =>
 export const uploadUpiQr = (file) => {
   const form = new FormData()
   form.append('qrImage', file)
-  return api.post('/settings/upi-qr', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }).then(r => r.data)
+  return api.post('/settings/upi-qr', form).then(r => r.data)
 }

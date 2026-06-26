@@ -49,7 +49,7 @@ async function getItem(req, res, next) {
 
 async function createItem(req, res, next) {
   try {
-    const { name, description, category, price, isVeg, available, tags } = req.body;
+    const { name, description, category, price, halfPrice, fullPrice, isVeg, available, tags } = req.body;
 
     let customizationOptions = [];
     if (req.body.customizationOptions) {
@@ -67,7 +67,9 @@ async function createItem(req, res, next) {
       name,
       description: description || '',
       category,
-      price: parseFloat(price),
+      price:      parseFloat(price),
+      halfPrice:  halfPrice  ? parseFloat(halfPrice)  : null,
+      fullPrice:  fullPrice  ? parseFloat(fullPrice)  : null,
       isVeg: isVeg === 'true' || isVeg === true,
       available: available !== 'false' && available !== false,
       photoUrl,
@@ -83,7 +85,7 @@ async function createItem(req, res, next) {
 
 async function updateItem(req, res, next) {
   try {
-    const allowed = ['name', 'description', 'category', 'price', 'isVeg', 'available', 'photoUrl', 'customizationOptions', 'tags', 'sortOrder'];
+    const allowed = ['name', 'description', 'category', 'price', 'halfPrice', 'fullPrice', 'isVeg', 'available', 'photoUrl', 'customizationOptions', 'tags', 'sortOrder'];
     const updates = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -99,7 +101,9 @@ async function updateItem(req, res, next) {
     if (updates.available !== undefined) {
       updates.available = updates.available !== 'false' && updates.available !== false;
     }
-    if (updates.price !== undefined) updates.price = parseFloat(updates.price);
+    if (updates.price     !== undefined) updates.price     = parseFloat(updates.price);
+    if (updates.halfPrice !== undefined) updates.halfPrice = updates.halfPrice ? parseFloat(updates.halfPrice) : null;
+    if (updates.fullPrice !== undefined) updates.fullPrice = updates.fullPrice ? parseFloat(updates.fullPrice) : null;
     if (req.file) updates.photoUrl = getPublicUrl('menu', req.file.filename);
 
     const item = await MenuItem.findOneAndUpdate(
