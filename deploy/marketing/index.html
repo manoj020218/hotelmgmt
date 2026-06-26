@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HotelQR — Smart QR Ordering for Hotels & Restaurants</title>
+  <meta name="description" content="HotelQR lets guests scan a QR code at their table and order food directly. Orders flow instantly to the kitchen display and waiter app. No app download needed." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --neon-cyan:   #00f5ff;
+      --neon-pink:   #ff2d78;
+      --neon-green:  #39ff14;
+      --neon-purple: #bf5fff;
+      --bg:          #050a0f;
+      --surface:     #0d1117;
+      --border:      rgba(0,245,255,.15);
+      --text:        #e8eaf0;
+      --muted:       #8892a4;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+    /* ── scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--neon-cyan); border-radius: 3px; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(5,10,15,.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-family: 'Orbitron', sans-serif; font-size: 1.4rem; font-weight: 800;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 12px var(--neon-cyan), 0 0 30px var(--neon-cyan);
+      letter-spacing: 2px;
+    }
+    .logo span { color: var(--neon-pink); text-shadow: 0 0 12px var(--neon-pink); }
+    nav ul { list-style: none; display: flex; gap: 2rem; }
+    nav ul a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .2s; }
+    nav ul a:hover { color: var(--neon-cyan); }
+    .nav-cta {
+      padding: .5rem 1.2rem;
+      border: 1px solid var(--neon-cyan);
+      border-radius: 6px;
+      color: var(--neon-cyan) !important;
+      font-weight: 600;
+      transition: background .2s, box-shadow .2s !important;
+    }
+    .nav-cta:hover { background: rgba(0,245,255,.1); box-shadow: 0 0 16px var(--neon-cyan); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,245,255,.07) 0%, transparent 70%),
+                  radial-gradient(ellipse 50% 40% at 80% 70%, rgba(255,45,120,.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-block;
+      padding: .35rem 1rem;
+      border: 1px solid var(--neon-pink);
+      border-radius: 999px;
+      color: var(--neon-pink);
+      font-size: .75rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      animation: pulse-badge 2s ease-in-out infinite;
+    }
+    @keyframes pulse-badge { 0%,100%{box-shadow:0 0 0 0 rgba(255,45,120,.4)} 50%{box-shadow:0 0 0 8px rgba(255,45,120,0)} }
+    .hero h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2.2rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 .glow-cyan { color: var(--neon-cyan); text-shadow: 0 0 20px var(--neon-cyan), 0 0 60px rgba(0,245,255,.4); }
+    .hero h1 .glow-pink { color: var(--neon-pink); text-shadow: 0 0 20px var(--neon-pink), 0 0 60px rgba(255,45,120,.4); }
+    .hero p {
+      font-size: 1.1rem; color: var(--muted); max-width: 600px;
+      line-height: 1.7; margin-bottom: 2.5rem;
+    }
+    .hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .btn-primary {
+      padding: .85rem 2rem;
+      background: linear-gradient(135deg, var(--neon-cyan), #0099cc);
+      color: #050a0f; font-weight: 700; border-radius: 8px;
+      text-decoration: none; font-size: 1rem;
+      box-shadow: 0 0 24px rgba(0,245,255,.5);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(0,245,255,.8); }
+    .btn-secondary {
+      padding: .85rem 2rem;
+      border: 1px solid var(--neon-pink);
+      color: var(--neon-pink); font-weight: 600; border-radius: 8px;
+      text-decoration: none; font-size: 1rem;
+      transition: background .2s, box-shadow .2s;
+    }
+    .btn-secondary:hover { background: rgba(255,45,120,.1); box-shadow: 0 0 24px rgba(255,45,120,.4); }
+
+    /* ── FLOATING QR CARD ── */
+    .hero-visual {
+      margin-top: 4rem;
+      display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;
+    }
+    .float-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      width: 200px;
+      text-align: center;
+      position: relative;
+      animation: float 4s ease-in-out infinite;
+    }
+    .float-card:nth-child(2) { animation-delay: -1.3s; }
+    .float-card:nth-child(3) { animation-delay: -2.6s; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+    .float-card .card-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+    .float-card .card-label { font-size: .8rem; color: var(--muted); margin-bottom: .4rem; }
+    .float-card .card-value { font-size: 1.1rem; font-weight: 600; color: var(--neon-cyan); }
+    .float-card.pink .card-value { color: var(--neon-pink); }
+    .float-card.green .card-value { color: var(--neon-green); }
+    .float-card .glow-ring {
+      position: absolute; inset: -2px; border-radius: 18px;
+      background: transparent;
+      border: 1px solid transparent;
+      animation: glow-ring 2s ease-in-out infinite;
+    }
+    .float-card.pink .glow-ring { animation-name: glow-ring-pink; }
+    .float-card.green .glow-ring { animation-name: glow-ring-green; }
+    @keyframes glow-ring { 0%,100%{box-shadow:0 0 0 0 rgba(0,245,255,.3)} 50%{box-shadow:0 0 20px 4px rgba(0,245,255,.2)} }
+    @keyframes glow-ring-pink { 0%,100%{box-shadow:0 0 0 0 rgba(255,45,120,.3)} 50%{box-shadow:0 0 20px 4px rgba(255,45,120,.2)} }
+    @keyframes glow-ring-green { 0%,100%{box-shadow:0 0 0 0 rgba(57,255,20,.3)} 50%{box-shadow:0 0 20px 4px rgba(57,255,20,.2)} }
+
+    /* ── QR BLINK CARD ── */
+    .qr-demo {
+      width: 120px; height: 120px; margin: 0 auto 1rem;
+      background: white; border-radius: 8px; padding: 8px;
+      position: relative; overflow: hidden;
+    }
+    .qr-demo img { width: 100%; height: 100%; object-fit: contain; }
+    .qr-demo::after {
+      content: '';
+      position: absolute; top: -100%; left: 0; right: 0; height: 50%;
+      background: linear-gradient(transparent, rgba(0,245,255,.3), transparent);
+      animation: qr-scan 2s linear infinite;
+    }
+    @keyframes qr-scan { 0%{top:-50%} 100%{top:150%} }
+
+    /* ── SECTION COMMON ── */
+    section { padding: 6rem 2rem; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-tag {
+      display: inline-block;
+      font-size: .75rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--neon-cyan); margin-bottom: 1rem;
+    }
+    .section-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.6rem, 4vw, 2.5rem);
+      margin-bottom: 1rem;
+    }
+    .section-sub { color: var(--muted); font-size: 1rem; max-width: 600px; line-height: 1.7; margin-bottom: 3rem; }
+
+    /* ── WORKFLOW ── */
+    #workflow { background: var(--surface); }
+    .workflow-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      position: relative;
+    }
+    .workflow-steps::before {
+      content: '';
+      position: absolute; top: 40px; left: 10%; right: 10%; height: 2px;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink), var(--neon-green), var(--neon-purple));
+      opacity: .4;
+    }
+    .step {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      position: relative;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .step:hover { border-color: var(--neon-cyan); box-shadow: 0 0 30px rgba(0,245,255,.15); }
+    .step-num {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 1rem;
+      margin: 0 auto 1.25rem;
+    }
+    .step:nth-child(1) .step-num { background: rgba(0,245,255,.1); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); box-shadow: 0 0 12px rgba(0,245,255,.3); }
+    .step:nth-child(2) .step-num { background: rgba(255,45,120,.1); color: var(--neon-pink); border: 1px solid var(--neon-pink); box-shadow: 0 0 12px rgba(255,45,120,.3); }
+    .step:nth-child(3) .step-num { background: rgba(57,255,20,.1); color: var(--neon-green); border: 1px solid var(--neon-green); box-shadow: 0 0 12px rgba(57,255,20,.3); }
+    .step:nth-child(4) .step-num { background: rgba(191,95,255,.1); color: var(--neon-purple); border: 1px solid var(--neon-purple); box-shadow: 0 0 12px rgba(191,95,255,.3); }
+    .step:nth-child(5) .step-num { background: rgba(0,245,255,.1); color: var(--neon-cyan); border: 1px solid var(--neon-cyan); box-shadow: 0 0 12px rgba(0,245,255,.3); }
+    .step-icon { font-size: 2rem; margin-bottom: .75rem; }
+    .step h3 { font-size: 1rem; font-weight: 600; margin-bottom: .5rem; }
+    .step p { font-size: .85rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      transition: border-color .3s, transform .3s;
+    }
+    .feature-card:hover { border-color: var(--neon-pink); transform: translateY(-4px); }
+    .feature-icon {
+      width: 52px; height: 52px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 1.25rem;
+      background: rgba(0,245,255,.08); border: 1px solid rgba(0,245,255,.2);
+    }
+    .feature-card:nth-child(even) .feature-icon { background: rgba(255,45,120,.08); border-color: rgba(255,45,120,.2); }
+    .feature-card h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: .6rem; }
+    .feature-card p { font-size: .88rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── APK DOWNLOAD ── */
+    #download { background: var(--surface); }
+    .download-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+    .apk-card {
+      border-radius: 16px;
+      padding: 2.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .apk-card.kds { background: linear-gradient(135deg, rgba(0,245,255,.08), rgba(0,153,204,.04)); border: 1px solid rgba(0,245,255,.3); }
+    .apk-card.waiter { background: linear-gradient(135deg, rgba(255,45,120,.08), rgba(191,95,255,.04)); border: 1px solid rgba(255,45,120,.3); }
+    .apk-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(0,245,255,.05), transparent 60%);
+    }
+    .apk-card.waiter::before { background: radial-gradient(circle at 50% 0%, rgba(255,45,120,.05), transparent 60%); }
+    .apk-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+    .apk-card h3 { font-family: 'Orbitron', sans-serif; font-size: 1.2rem; margin-bottom: .75rem; }
+    .apk-card p { font-size: .88rem; color: var(--muted); margin-bottom: 1.75rem; line-height: 1.65; }
+    .apk-badge {
+      display: inline-block;
+      font-size: .75rem; font-weight: 600; padding: .25rem .75rem;
+      border-radius: 999px; margin-bottom: 1.5rem;
+    }
+    .kds .apk-badge { background: rgba(0,245,255,.15); color: var(--neon-cyan); border: 1px solid rgba(0,245,255,.3); }
+    .waiter .apk-badge { background: rgba(255,45,120,.15); color: var(--neon-pink); border: 1px solid rgba(255,45,120,.3); }
+    .btn-download {
+      display: inline-flex; align-items: center; gap: .6rem;
+      padding: .85rem 2rem; border-radius: 10px; font-weight: 700; font-size: .95rem;
+      text-decoration: none; transition: transform .2s, box-shadow .2s;
+    }
+    .kds .btn-download { background: var(--neon-cyan); color: #050a0f; box-shadow: 0 0 20px rgba(0,245,255,.4); }
+    .kds .btn-download:hover { transform: translateY(-2px); box-shadow: 0 0 36px rgba(0,245,255,.7); }
+    .waiter .btn-download { background: var(--neon-pink); color: #fff; box-shadow: 0 0 20px rgba(255,45,120,.4); }
+    .waiter .btn-download:hover { transform: translateY(-2px); box-shadow: 0 0 36px rgba(255,45,120,.7); }
+    .apk-note { font-size: .75rem; color: var(--muted); margin-top: .75rem; }
+
+    /* ── PRICING ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 2rem;
+    }
+    .price-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.5rem; text-align: center;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .price-card.featured { border-color: var(--neon-cyan); box-shadow: 0 0 40px rgba(0,245,255,.1); }
+    .price-card .price-label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: .5rem; }
+    .price-card .price-amount { font-family: 'Orbitron', sans-serif; font-size: 2.2rem; color: var(--neon-cyan); margin-bottom: .25rem; }
+    .price-card .price-period { font-size: .8rem; color: var(--muted); margin-bottom: 1.5rem; }
+    .price-card ul { list-style: none; text-align: left; margin-bottom: 2rem; }
+    .price-card li { padding: .5rem 0; font-size: .9rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .price-card li::before { content: '✓ '; color: var(--neon-green); font-weight: 700; }
+    .btn-price {
+      display: block; padding: .85rem;
+      border-radius: 8px; font-weight: 600; text-decoration: none;
+      transition: background .2s, box-shadow .2s;
+    }
+    .btn-price.outline { border: 1px solid var(--neon-cyan); color: var(--neon-cyan); }
+    .btn-price.outline:hover { background: rgba(0,245,255,.1); box-shadow: 0 0 20px rgba(0,245,255,.2); }
+    .btn-price.solid { background: var(--neon-cyan); color: #050a0f; box-shadow: 0 0 20px rgba(0,245,255,.4); }
+    .btn-price.solid:hover { box-shadow: 0 0 36px rgba(0,245,255,.7); }
+
+    /* ── CONTACT ── */
+    #contact { background: var(--surface); }
+    .contact-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2rem;
+    }
+    .contact-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2rem; text-align: center;
+      transition: border-color .3s;
+    }
+    .contact-card:hover { border-color: var(--neon-cyan); }
+    .contact-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .contact-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: .5rem; }
+    .contact-card p { font-size: .88rem; color: var(--muted); margin-bottom: 1.25rem; }
+    .contact-card a {
+      display: inline-block;
+      padding: .65rem 1.5rem;
+      border-radius: 8px; font-weight: 600; font-size: .9rem; text-decoration: none;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .wa-btn { background: #25d366; color: #fff; box-shadow: 0 0 16px rgba(37,211,102,.3); }
+    .wa-btn:hover { transform: translateY(-2px); box-shadow: 0 0 28px rgba(37,211,102,.6); }
+    .mail-btn { background: rgba(0,245,255,.1); color: var(--neon-cyan); border: 1px solid rgba(0,245,255,.3); }
+    .mail-btn:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(0,245,255,.3); }
+
+    /* ── LEGAL TABS ── */
+    #legal { padding: 6rem 2rem; }
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; flex-wrap: wrap; }
+    .tab-btn {
+      padding: .75rem 1.5rem; background: none; border: none;
+      color: var(--muted); cursor: pointer; font-size: .9rem; font-family: inherit;
+      border-bottom: 2px solid transparent; transition: color .2s, border-color .2s;
+    }
+    .tab-btn.active { color: var(--neon-cyan); border-bottom-color: var(--neon-cyan); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tab-content h2 { font-size: 1.3rem; margin-bottom: 1rem; }
+    .tab-content p, .tab-content li { font-size: .9rem; color: var(--muted); line-height: 1.8; margin-bottom: .75rem; }
+    .tab-content ul { padding-left: 1.5rem; }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 3rem 2rem; text-align: center;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: .85rem;
+    }
+    footer .footer-logo { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; color: var(--neon-cyan); margin-bottom: .75rem; }
+    footer a { color: var(--neon-cyan); text-decoration: none; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      nav ul { display: none; }
+      .workflow-steps::before { display: none; }
+      .hero-visual { gap: 1rem; }
+      .float-card { width: 140px; padding: 1rem; }
+    }
+
+    /* ── ANIMATED GRID BG ── */
+    .grid-bg {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0,245,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,245,255,.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">Hotel<span>QR</span></div>
+    <ul>
+      <li><a href="#workflow">How it Works</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#download">Downloads</a></li>
+      <li><a href="#contact" class="nav-cta">Contact</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">&#9733; Smart Hospitality Tech</div>
+    <h1>
+      QR Ordering.<br/>
+      <span class="glow-cyan">Instant Kitchen.</span><br/>
+      <span class="glow-pink">Zero Wait.</span>
+    </h1>
+    <p>
+      Guests scan a QR code at their table — no app download needed. Orders fly straight to the Kitchen Display System and waiter app in real time.
+    </p>
+    <div class="hero-btns">
+      <a href="#workflow" class="btn-primary">See How It Works</a>
+      <a href="#contact" class="btn-secondary">Get a Demo</a>
+    </div>
+
+    <div class="hero-visual">
+      <div class="float-card">
+        <div class="glow-ring"></div>
+        <div class="qr-demo">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+            <rect width="200" height="200" fill="white"/>
+            <rect x="10" y="10" width="70" height="70" fill="none" stroke="black" stroke-width="8"/>
+            <rect x="22" y="22" width="46" height="46" fill="black"/>
+            <rect x="120" y="10" width="70" height="70" fill="none" stroke="black" stroke-width="8"/>
+            <rect x="132" y="22" width="46" height="46" fill="black"/>
+            <rect x="10" y="120" width="70" height="70" fill="none" stroke="black" stroke-width="8"/>
+            <rect x="22" y="132" width="46" height="46" fill="black"/>
+            <rect x="120" y="120" width="15" height="15" fill="black"/>
+            <rect x="145" y="120" width="15" height="15" fill="black"/>
+            <rect x="120" y="145" width="15" height="15" fill="black"/>
+            <rect x="145" y="145" width="30" height="30" fill="black"/>
+            <rect x="95" y="10" width="10" height="10" fill="black"/>
+            <rect x="95" y="30" width="10" height="25" fill="black"/>
+            <rect x="95" y="65" width="10" height="15" fill="black"/>
+            <rect x="95" y="90" width="25" height="10" fill="black"/>
+            <rect x="95" y="110" width="10" height="10" fill="black"/>
+            <rect x="110" y="90" width="10" height="30" fill="black"/>
+          </svg>
+        </div>
+        <div class="card-label">Table QR Code</div>
+        <div class="card-value">Table #7</div>
+      </div>
+
+      <div class="float-card pink">
+        <div class="glow-ring"></div>
+        <div class="card-icon">📱</div>
+        <div class="card-label">Guest scans & orders</div>
+        <div class="card-value" style="color:var(--neon-pink)">2 items</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem">Butter Chicken<br/>Garlic Naan</div>
+      </div>
+
+      <div class="float-card green">
+        <div class="glow-ring"></div>
+        <div class="card-icon">🔔</div>
+        <div class="card-label">Kitchen notified</div>
+        <div class="card-value" style="color:var(--neon-green)">KDS Live</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.4rem;animation:pulse-badge 1s infinite">● Preparing</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORKFLOW -->
+  <section id="workflow">
+    <div class="section-inner">
+      <div class="section-tag">Animated Workflow</div>
+      <h2 class="section-title">From Scan to Served — in 60 Seconds</h2>
+      <p class="section-sub">One seamless loop connects your guest, waiter, and kitchen with zero friction.</p>
+
+      <div class="workflow-steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <div class="step-icon">🪑</div>
+          <h3>Guest Sits Down</h3>
+          <p>A unique QR code is printed or displayed on each table. No app required.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <div class="step-icon">📷</div>
+          <h3>Scan &amp; Browse</h3>
+          <p>Guest opens the camera and scans. The digital menu loads instantly in their browser.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <div class="step-icon">🛒</div>
+          <h3>Order Placed</h3>
+          <p>Guest adds items, confirms the order. Payment can be done digitally via UPI QR.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">04</div>
+          <div class="step-icon">📟</div>
+          <h3>Waiter Notified</h3>
+          <p>Waiter app (Android) gets a push notification instantly with table and order details.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">05</div>
+          <div class="step-icon">👨‍🍳</div>
+          <h3>Kitchen Displays</h3>
+          <p>KDS screen shows the order. Chef accepts, marks preparing → ready. Done!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="section-inner">
+      <div class="section-tag">Features</div>
+      <h2 class="section-title">Everything Your Hotel Needs</h2>
+      <p class="section-sub">Built for real hospitality operations — multi-tenant, real-time, and mobile-first.</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <h3>Digital Menu Management</h3>
+          <p>Add, edit, and categorise menu items with images and pricing from the admin panel. Changes reflect instantly for guests.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Real-Time Order Flow</h3>
+          <p>WebSocket-powered live updates across all screens — admin, waiter, and KDS — with no polling or refreshing needed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Android Apps (KDS &amp; Waiter)</h3>
+          <p>Native Android APKs for Kitchen Display System and Waiter. Runs offline-capable with Firebase Cloud Messaging push alerts.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💳</div>
+          <h3>UPI QR Payments</h3>
+          <p>Attach your UPI QR to each hotel. Guests pay at the table; admin marks payment received or disputed in one tap.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Analytics Dashboard</h3>
+          <p>Track daily revenue, top items, order volumes, and session data. Filter by day, week, or month with chart exports.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏨</div>
+          <h3>Multi-Hotel / Multi-Tenant</h3>
+          <p>One platform, multiple hotels. Each property has isolated data, its own menu, QR codes, and staff accounts.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Role-Based Access</h3>
+          <p>Admin, Waiter, and KDS roles. Each sees only what they need. JWT-secured with refresh token rotation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🖨️</div>
+          <h3>Printable QR Codes</h3>
+          <p>Generate and download QR codes for every table. Stick them on table tents, frames, or laminated cards.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD -->
+  <section id="download">
+    <div class="section-inner">
+      <div class="section-tag">Downloads</div>
+      <h2 class="section-title">Get the Android Apps</h2>
+      <p class="section-sub">Install the KDS and Waiter apps on Android tablets and phones. Admin uses the PWA — no install needed.</p>
+
+      <div class="download-cards">
+        <div class="apk-card kds">
+          <div class="apk-icon">🖥️</div>
+          <span class="apk-badge">Kitchen Display System</span>
+          <h3>HotelQR KDS</h3>
+          <p>Mount on a tablet in the kitchen. Orders appear automatically, chefs accept and mark items ready — no touch needed for updates.</p>
+          <a href="/apk/hotelqr-kds-latest.apk" class="btn-download" id="kds-download">
+            ⬇ Download KDS APK
+          </a>
+          <p class="apk-note">Android 8.0+ &nbsp;·&nbsp; ~8MB &nbsp;·&nbsp; Latest build</p>
+        </div>
+
+        <div class="apk-card waiter">
+          <div class="apk-icon">🧑‍🍽️</div>
+          <span class="apk-badge">Waiter App</span>
+          <h3>HotelQR Waiter</h3>
+          <p>Each waiter installs this on their phone. Get push notifications for new orders, track status, and mark tables as served.</p>
+          <a href="/apk/hotelqr-waiter-latest.apk" class="btn-download" id="waiter-download">
+            ⬇ Download Waiter APK
+          </a>
+          <p class="apk-note">Android 8.0+ &nbsp;·&nbsp; ~8MB &nbsp;·&nbsp; Latest build</p>
+        </div>
+      </div>
+
+      <p style="text-align:center;margin-top:2rem;font-size:.85rem;color:var(--muted)">
+        Admin Panel is a PWA — open <strong style="color:var(--neon-cyan)">hotelqr.admin.iotsoft.in</strong> in Chrome and install from the browser menu. No APK needed.
+      </p>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <div class="section-inner">
+      <div class="section-tag">Get in Touch</div>
+      <h2 class="section-title">Ready to Go Digital?</h2>
+      <p class="section-sub">Contact us for a live demo, custom setup, or purchase enquiry. We respond within 2 hours on WhatsApp.</p>
+
+      <div class="contact-grid">
+        <div class="contact-card">
+          <div class="contact-icon">💬</div>
+          <h3>WhatsApp</h3>
+          <p>Fastest response. Send us a message and we'll set up a live demo for your hotel.</p>
+          <a href="https://wa.me/917240226566?text=Hi%2C%20I%27m%20interested%20in%20HotelQR%20demo" class="wa-btn" target="_blank" rel="noopener">
+            Chat on WhatsApp
+          </a>
+        </div>
+
+        <div class="contact-card">
+          <div class="contact-icon">✉️</div>
+          <h3>Email</h3>
+          <p>For purchase enquiries, invoices, or detailed proposal requests.</p>
+          <a href="mailto:jenixindia@gmail.com?subject=HotelQR%20Purchase%20Enquiry" class="mail-btn">
+            jenixindia@gmail.com
+          </a>
+        </div>
+
+        <div class="contact-card">
+          <div class="contact-icon">🌐</div>
+          <h3>Admin Panel Demo</h3>
+          <p>Try the live admin panel. Request demo credentials via WhatsApp first.</p>
+          <a href="https://hotelqr.admin.iotsoft.in" class="mail-btn" target="_blank" rel="noopener">
+            Open Admin Panel
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEGAL -->
+  <section id="legal">
+    <div class="section-inner">
+      <div class="section-tag">Legal</div>
+      <h2 class="section-title">Policies &amp; Terms</h2>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('privacy', this)">Privacy Policy</button>
+        <button class="tab-btn" onclick="showTab('terms', this)">Terms &amp; Conditions</button>
+        <button class="tab-btn" onclick="showTab('about', this)">About</button>
+      </div>
+
+      <div id="privacy" class="tab-content active">
+        <h2>Privacy Policy</h2>
+        <p><strong>Effective Date:</strong> June 2026</p>
+        <p>HotelQR ("we", "our") is operated by Jenix India. We take privacy seriously.</p>
+        <ul>
+          <li><strong>Data Collected:</strong> Guest orders (table number, items, session ID), hotel staff accounts (name, email, hashed password), and payment status flags. No credit card data is stored.</li>
+          <li><strong>How Used:</strong> Order data is used solely to fulfil the order and display analytics to the hotel admin. We do not sell or share data with third parties.</li>
+          <li><strong>Push Notifications:</strong> Firebase Cloud Messaging (FCM) is used to send order alerts to the Waiter and KDS apps. FCM tokens are stored per-device and deleted on logout.</li>
+          <li><strong>Cookies:</strong> The admin PWA uses localStorage for JWT tokens. No third-party tracking cookies are used.</li>
+          <li><strong>Data Retention:</strong> Order data is retained as long as your hotel account is active. You may request deletion at any time.</li>
+          <li><strong>Contact:</strong> For privacy concerns, email <a href="mailto:jenixindia@gmail.com">jenixindia@gmail.com</a>.</li>
+        </ul>
+      </div>
+
+      <div id="terms" class="tab-content">
+        <h2>Terms &amp; Conditions</h2>
+        <p><strong>Effective Date:</strong> June 2026</p>
+        <ul>
+          <li>HotelQR is a software-as-a-service (SaaS) product. Usage constitutes acceptance of these terms.</li>
+          <li>Each hotel account is for a single property. Multi-property use requires separate subscriptions.</li>
+          <li>You are responsible for the accuracy of menu items, pricing, and UPI details you configure in the system.</li>
+          <li>We are not liable for order fulfilment failures caused by network outages, incorrect configuration, or third-party service disruptions.</li>
+          <li>APKs provided are licensed for use only by the purchasing hotel. Redistribution or resale is not permitted.</li>
+          <li>We reserve the right to terminate accounts that violate these terms or are used for illegal purposes.</li>
+          <li>Pricing and plans are subject to change with 30 days notice.</li>
+          <li>Governing law: India. Disputes resolved in courts of jurisdiction in Gujarat, India.</li>
+        </ul>
+      </div>
+
+      <div id="about" class="tab-content">
+        <h2>About HotelQR</h2>
+        <p>HotelQR is a product of <strong>Jenix India</strong> — an IoT and software solutions company based in India.</p>
+        <p>We build practical, real-world technology for hospitality, retail, and industrial clients. HotelQR was designed to eliminate handwritten order slips, shouted orders, and the chaos of busy restaurant service — replacing it with a seamless digital flow that works on any Android device.</p>
+        <p><strong>Tech Stack:</strong> Node.js · MongoDB · React 18 PWA · Socket.io · Firebase FCM · Capacitor Android · Nginx · PM2</p>
+        <p><strong>Contact:</strong><br/>
+          WhatsApp: <a href="https://wa.me/917240226566">+91 72402 26566</a><br/>
+          Email: <a href="mailto:jenixindia@gmail.com">jenixindia@gmail.com</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">Hotel<span style="color:var(--neon-pink)">QR</span></div>
+    <p>Smart QR Ordering · Kitchen Display · Waiter App</p>
+    <p style="margin-top:.5rem">
+      <a href="#legal">Privacy</a> &nbsp;·&nbsp;
+      <a href="#legal">Terms</a> &nbsp;·&nbsp;
+      <a href="#contact">Contact</a>
+    </p>
+    <p style="margin-top:1rem;font-size:.8rem">© 2026 Jenix India. All rights reserved.</p>
+  </footer>
+
+  <script>
+    function showTab(id, btn) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    // Intersection-based step animation
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.style.opacity = 1; });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.step, .feature-card, .apk-card, .contact-card').forEach(el => {
+      el.style.opacity = 0;
+      el.style.transition = 'opacity .6s ease, transform .4s ease, border-color .3s';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>
