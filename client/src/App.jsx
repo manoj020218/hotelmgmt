@@ -1,7 +1,11 @@
 import React, { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 import { PageLoader } from './components/Spinner'
+
+// Native APK builds use HashRouter — Android WebView needs hash-based URLs
+// to avoid routing failures on back-press or app restore.
+const Router = import.meta.env.VITE_APP_ROLE ? HashRouter : BrowserRouter
 
 const CustomerMenuPage    = lazy(() => import('./views/customer/MenuPage'))
 const CustomerCartPage    = lazy(() => import('./views/customer/CartPage'))
@@ -35,8 +39,14 @@ function RequireAuth({ children, role }) {
 }
 
 function RoleRedirect() {
-  const user = useAuthStore(s => s.user)
-  if (!user) return <Navigate to="/admin/login" replace />
+  const user    = useAuthStore(s => s.user)
+  const appRole = import.meta.env.VITE_APP_ROLE  // 'kds' | 'waiter' | undefined
+
+  if (!user) {
+    if (appRole === 'kds')    return <Navigate to="/kds/login"    replace />
+    if (appRole === 'waiter') return <Navigate to="/waiter/login" replace />
+    return <Navigate to="/admin/login" replace />
+  }
   if (user.role === 'admin')   return <Navigate to="/admin"  replace />
   if (user.role === 'waiter')  return <Navigate to="/waiter" replace />
   if (user.role === 'kitchen') return <Navigate to="/kds"    replace />
@@ -45,7 +55,7 @@ function RoleRedirect() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public / customer routes */}
@@ -91,6 +101,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </Router>
   )
 }
