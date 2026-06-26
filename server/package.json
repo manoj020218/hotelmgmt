@@ -7,7 +7,8 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest --runInBand --forceExit",
-    "seed": "node src/seeds/seed.js"
+    "seed": "node src/seeds/seed.js",
+    "provision": "node src/seeds/provision-hotel.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

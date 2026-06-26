@@ -1,4 +1,4 @@
-require('dotenv').config()
+require('dotenv').config({ path: require('path').join(__dirname, '../../.env') })
 const mongoose = require('mongoose')
 const bcrypt   = require('bcryptjs')
 const { v4: uuidv4 } = require('uuid')
@@ -9,7 +9,7 @@ const Table    = require('../models/Table')
 const MenuItem = require('../models/MenuItem')
 
 async function run() {
-  await mongoose.connect(process.env.MONGODB_URI)
+  await mongoose.connect(process.env.MONGO_URI)
   console.log('Connected to MongoDB')
 
   const existingHotel = await Hotel.findOne()
