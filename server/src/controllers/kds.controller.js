@@ -26,6 +26,10 @@ async function acceptOrder(req, res, next) {
     const order = await Order.findOne({ _id: req.params.orderId, hotelId: req.user.hotelId });
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
+    if (order.kdsStatus !== 'new') {
+      return res.status(409).json({ error: `Order already ${order.kdsStatus}` });
+    }
+
     order.kdsStatus = 'accepted';
     order.status    = 'preparing';
 
@@ -67,8 +71,12 @@ async function rejectOrder(req, res, next) {
   try {
     const { reason } = req.body;
 
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findOne({ _id: req.params.orderId, hotelId: req.user.hotelId });
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    if (!['new', 'accepted'].includes(order.kdsStatus)) {
+      return res.status(409).json({ error: `Cannot reject order with kdsStatus '${order.kdsStatus}'` });
+    }
 
     order.kdsStatus       = 'rejected';
     order.status          = 'rejected';
@@ -102,8 +110,12 @@ async function rejectOrder(req, res, next) {
 // ── PATCH /api/kds/:orderId/ready ─────────────────────────────────────────────
 async function markReady(req, res, next) {
   try {
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findOne({ _id: req.params.orderId, hotelId: req.user.hotelId });
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    if (order.kdsStatus !== 'accepted') {
+      return res.status(409).json({ error: `Cannot mark ready from kdsStatus '${order.kdsStatus}'` });
+    }
 
     order.kdsStatus = 'ready';
     order.status    = 'ready';

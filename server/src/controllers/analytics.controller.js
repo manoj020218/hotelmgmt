@@ -1,4 +1,4 @@
-const { getDashboard, getRevenue, getItems, getOrdersForExport } = require('../services/analytics.service');
+const { getDashboard, getRevenue, getItems, getOrdersForExport, getPeriodBounds } = require('../services/analytics.service');
 
 async function dashboard(req, res, next) {
   try {
@@ -11,8 +11,15 @@ async function dashboard(req, res, next) {
 
 async function revenue(req, res, next) {
   try {
-    const { from, to, groupBy = 'day' } = req.query;
-    const data = await getRevenue(req.user.hotelId.toString(), from, to, groupBy);
+    const { from, to, groupBy = 'day', period } = req.query;
+    let fromDate = from;
+    let toDate   = to;
+    if (!from && !to && period) {
+      const bounds = getPeriodBounds(period);
+      fromDate = bounds.start.toISOString();
+      toDate   = bounds.end.toISOString();
+    }
+    const data = await getRevenue(req.user.hotelId.toString(), fromDate, toDate, groupBy);
     res.json(data);
   } catch (err) {
     next(err);

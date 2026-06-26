@@ -35,6 +35,12 @@ export default function LiveOrders() {
     on('order:served', ({ orderId }) => {
       setOrders(prev => prev.filter(o => o._id !== orderId))
     })
+    on('order:rejected', ({ orderId }) => {
+      setOrders(prev => prev.filter(o => o._id !== orderId))
+    })
+    on('order:modified', ({ orderId, bill }) => {
+      setOrders(prev => prev.map(o => o._id === orderId ? { ...o, bill } : o))
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId])
 

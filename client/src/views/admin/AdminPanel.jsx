@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
+import { disconnectSocket } from '../../hooks/useSocket'
+import { useFCM } from '../../hooks/useFCM'
 import { Spinner } from '../../components/Spinner'
 import NotificationBell from '../../components/NotificationBell'
 
@@ -57,7 +59,7 @@ function Sidebar() {
       <div className="p-2 border-t border-border">
         <button
           data-testid="logout-btn"
-          onClick={() => { clearAuth(); navigate('/admin/login') }}
+          onClick={() => { disconnectSocket(); clearAuth(); navigate('/admin/login') }}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-textMuted hover:text-red hover:bg-red/10 transition-colors"
         >
           <span>🚪</span>
@@ -79,6 +81,7 @@ function StubPage({ title }) {
 
 export default function AdminPanel() {
   const user = useAuthStore(s => s.user)
+  useFCM({ enabled: true })
 
   return (
     <div className="flex h-screen bg-bg overflow-hidden">

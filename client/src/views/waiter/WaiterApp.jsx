@@ -4,6 +4,7 @@ import { getMyOrders, updateOrderStatus } from '../../api/order.api'
 import { toggleAvailability } from '../../api/waiter.api'
 import { useAuthStore } from '../../stores/authStore'
 import { useSocket } from '../../hooks/useSocket'
+import { useFCM } from '../../hooks/useFCM'
 import { Button } from '../../components/Button'
 import { OrderStatusBadge } from '../../components/Badge'
 import { Spinner } from '../../components/Spinner'
@@ -111,6 +112,7 @@ function OrderCard({ order, onServed, onReject, highlight }) {
 export default function WaiterApp() {
   const user     = useAuthStore(s => s.user)
   const navigate = useNavigate()
+  useFCM({ enabled: true })
 
   const [tab,          setTab]          = useState('active')     // 'active' | 'completed' | 'rating'
   const [orders,       setOrders]       = useState([])

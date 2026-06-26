@@ -125,8 +125,8 @@ async function addNote(req, res, next) {
     const { text, tag } = req.body;
     if (!text) return res.status(400).json({ error: 'Note text is required' });
 
-    const table = await Table.findByIdAndUpdate(
-      req.params.tableId,
+    const table = await Table.findOneAndUpdate(
+      { _id: req.params.tableId, hotelId: req.user.hotelId },
       { $push: { notes: { text, tag: tag || '', addedBy: req.user._id, addedAt: new Date() } } },
       { new: true }
     );
@@ -141,7 +141,7 @@ async function addNote(req, res, next) {
 // ── DELETE /api/tables/:tableId/notes/:noteIndex ──────────────────────────────
 async function deleteNote(req, res, next) {
   try {
-    const table = await Table.findById(req.params.tableId);
+    const table = await Table.findOne({ _id: req.params.tableId, hotelId: req.user.hotelId });
     if (!table) return res.status(404).json({ error: 'Table not found' });
 
     const idx = parseInt(req.params.noteIndex, 10);
@@ -161,7 +161,7 @@ async function deleteNote(req, res, next) {
 // ── GET /api/tables/:tableId/qr ───────────────────────────────────────────────
 async function getTableQR(req, res, next) {
   try {
-    const table = await Table.findById(req.params.tableId).select('qrToken qrCodeUrl tableNumber');
+    const table = await Table.findOne({ _id: req.params.tableId, hotelId: req.user.hotelId }).select('qrToken qrCodeUrl tableNumber hotelId');
     if (!table) return res.status(404).json({ error: 'Table not found' });
 
     res.json({ qrCodeUrl: table.qrCodeUrl, qrToken: table.qrToken });

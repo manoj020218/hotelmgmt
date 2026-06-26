@@ -253,6 +253,15 @@ async function updateStatus(req, res, next) {
     const order = await Order.findById(req.params.orderId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
+    const ALLOWED_TRANSITIONS = {
+      served:    ['placed', 'assigned', 'preparing', 'ready'],
+      rejected:  ['placed', 'assigned', 'preparing'],
+      cancelled: ['placed', 'assigned'],
+    };
+    if (!ALLOWED_TRANSITIONS[status].includes(order.status)) {
+      return res.status(409).json({ error: `Cannot transition from '${order.status}' to '${status}'` });
+    }
+
     order.status = status;
     if (rejectionReason) order.rejectionReason = rejectionReason;
 
@@ -339,7 +348,8 @@ async function orderHistory(req, res, next) {
     const table = await Table.findOne({ qrToken: req.params.tableQrToken });
     if (!table) return res.status(404).json({ error: 'Table not found' });
 
-    const orders = await Order.find({ tableId: table._id })
+    const since = new Date(); since.setHours(0, 0, 0, 0);
+    const orders = await Order.find({ tableId: table._id, createdAt: { $gte: since } })
       .sort({ createdAt: -1 })
       .limit(3);
     res.json({ orders });

@@ -9,8 +9,8 @@ export const getOrder = (orderId, sessionId) =>
 export const getOrderByTable = (tableQrToken) =>
   api.get(`/orders/table/${tableQrToken}`).then(r => r.data)
 
-export const modifyOrder = (orderId, addItems) =>
-  api.patch(`/orders/${orderId}/modify`, { addItems }).then(r => r.data)
+export const modifyOrder = (orderId, addItems, sessionId) =>
+  api.patch(`/orders/${orderId}/modify`, { addItems, sessionId }).then(r => r.data)
 
 export const updateOrderStatus = (orderId, status, rejectionReason) =>
   api.patch(`/orders/${orderId}/status`, { status, rejectionReason }).then(r => r.data)

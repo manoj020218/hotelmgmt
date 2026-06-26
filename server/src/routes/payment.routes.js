@@ -12,7 +12,7 @@ router.get('/admin/today',                 auth, guard('admin'),           today
 router.get('/order/:orderId',              getPaymentByOrder);
 
 router.patch('/:paymentId/mark-received',  auth, guard('waiter', 'admin'), markReceived);
-router.get('/:paymentId/receipt',          getReceipt);
+router.get('/:paymentId/receipt',          auth, guard('waiter', 'admin'), getReceipt);
 router.post('/:paymentId/dispute',         auth, guard('admin'),           disputePayment);
 
 module.exports = router;

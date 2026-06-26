@@ -95,8 +95,8 @@ async function toggleAvailability(req, res, next) {
 // ── DELETE /api/waiters/:waiterId ─────────────────────────────────────────────
 async function deleteWaiter(req, res, next) {
   try {
-    const user = await User.findByIdAndUpdate(
-      req.params.waiterId,
+    const user = await User.findOneAndUpdate(
+      { _id: req.params.waiterId, hotelId: req.user.hotelId },
       { isActive: false },
       { new: true }
     );
@@ -111,7 +111,7 @@ async function deleteWaiter(req, res, next) {
 // ── GET /api/waiters/:waiterId/orders ─────────────────────────────────────────
 async function getWaiterOrders(req, res, next) {
   try {
-    const orders = await Order.find({ assignedWaiterId: req.params.waiterId })
+    const orders = await Order.find({ assignedWaiterId: req.params.waiterId, hotelId: req.user.hotelId })
       .sort({ createdAt: -1 })
       .limit(50);
 

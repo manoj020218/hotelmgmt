@@ -50,7 +50,8 @@ export default function CartPage() {
       }))
 
       if (modifyOrderId) {
-        await modifyOrder(modifyOrderId, lineItems)
+        const lastOrder = JSON.parse(sessionStorage.getItem('lastOrder') || '{}')
+        await modifyOrder(modifyOrderId, lineItems, lastOrder.sessionId)
         sessionStorage.removeItem('modifyOrderId')
         clearCart()
         navigate(`/order/${modifyOrderId}`, { replace: true })

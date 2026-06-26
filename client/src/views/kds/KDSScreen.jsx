@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getKDSOrders, kdsAccept, kdsReject, kdsMarkReady } from '../../api/kds.api'
 import { useSocket } from '../../hooks/useSocket'
 import { useAuthStore } from '../../stores/authStore'
+import { useFCM } from '../../hooks/useFCM'
 import { Button } from '../../components/Button'
 import { Spinner } from '../../components/Spinner'
 
@@ -138,6 +139,7 @@ function KDSCard({ order, onAccept, onReject, onReady }) {
 export default function KDSScreen() {
   const user    = useAuthStore(s => s.user)
   const hotelId = user?.hotelId
+  useFCM({ enabled: true })
 
   const [orders,       setOrders]       = useState([])
   const [loading,      setLoading]      = useState(true)

@@ -108,6 +108,10 @@ export default function OrderStatusPage() {
       setRejected({ flag: true, reason: reason ?? '' })
       setOrder(prev => prev ? { ...prev, status: 'rejected', kdsStatus: 'rejected' } : prev)
     })
+    on('order:rejected', ({ rejectionReason } = {}) => {
+      setRejected({ flag: true, reason: rejectionReason ?? '' })
+      setOrder(prev => prev ? { ...prev, status: 'rejected' } : prev)
+    })
     on('order:ready', () =>
       setOrder(prev => prev ? { ...prev, status: 'ready', kdsStatus: 'ready' } : prev)
     )

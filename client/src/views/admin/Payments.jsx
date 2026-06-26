@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getTodayPayments, markPaymentReceived } from '../../api/payment.api'
+import { useSocket } from '../../hooks/useSocket'
+import { useAuthStore } from '../../stores/authStore'
 import { Button } from '../../components/Button'
 import { Spinner } from '../../components/Spinner'
 
@@ -8,6 +10,8 @@ const METHODS = ['cash', 'card', 'upi', 'gpay', 'phonepay']
 export default function Payments() {
   const [data,    setData]    = useState(null)  // { payments, totalCollected, byMethod, pending }
   const [loading, setLoading] = useState(true)
+  const user    = useAuthStore(s => s.user)
+  const { on }  = useSocket({ hotelId: user?.hotelId, role: 'admin', userId: user?._id })
 
   useEffect(() => {
     getTodayPayments()
@@ -15,6 +19,27 @@ export default function Payments() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    on('payment:received', (payload) => {
+      setData(prev => {
+        if (!prev) return prev
+        const updated = prev.payments.map(p =>
+          p._id === payload.paymentId
+            ? { ...p, status: 'received', method: payload.method, receiptUrl: payload.receiptUrl }
+            : p
+        )
+        const nowReceived = updated.find(p => p._id === payload.paymentId)
+        return {
+          ...prev,
+          payments:       updated,
+          pending:        prev.pending.filter(p => p._id !== payload.paymentId),
+          totalCollected: (prev.totalCollected ?? 0) + (nowReceived?.amount ?? payload.amount ?? 0),
+        }
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.hotelId])
 
   const handleMarkReceived = async (paymentId, method) => {
     try {

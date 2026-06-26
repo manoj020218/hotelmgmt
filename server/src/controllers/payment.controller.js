@@ -42,7 +42,7 @@ async function getPaymentByOrder(req, res, next) {
     const hotel      = await Hotel.findById(order.hotelId);
     const upiLinks   = hotel ? buildUpiLinks(hotel, order.bill.total, order.tableNumber) : {};
 
-    res.json({ payment, bill: order.bill, upiDeepLinks: upiLinks });
+    res.json({ payment, bill: order.bill, upiDeepLinks: upiLinks, upiQrUrl: hotel?.upiQrUrl || '' });
   } catch (err) {
     next(err);
   }
@@ -59,6 +59,10 @@ async function markReceived(req, res, next) {
 
     const payment = await Payment.findOne({ _id: req.params.paymentId, hotelId: req.user.hotelId });
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    if (payment.status !== 'pending') {
+      return res.status(409).json({ error: `Payment already ${payment.status}` });
+    }
 
     payment.status     = 'received';
     payment.method     = method;
@@ -109,7 +113,7 @@ async function markReceived(req, res, next) {
 // ── GET /api/payments/:paymentId/receipt ─────────────────────────────────────
 async function getReceipt(req, res, next) {
   try {
-    const payment = await Payment.findById(req.params.paymentId);
+    const payment = await Payment.findOne({ _id: req.params.paymentId, hotelId: req.user.hotelId });
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
     res.json({ receiptUrl: payment.receiptUrl });
   } catch (err) {
@@ -121,8 +125,8 @@ async function getReceipt(req, res, next) {
 async function disputePayment(req, res, next) {
   try {
     const { reason } = req.body;
-    const payment = await Payment.findByIdAndUpdate(
-      req.params.paymentId,
+    const payment = await Payment.findOneAndUpdate(
+      { _id: req.params.paymentId, hotelId: req.user.hotelId },
       { status: 'disputed' },
       { new: true }
     );
@@ -140,8 +144,12 @@ async function todayPayments(req, res, next) {
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
 
     const payments = await Payment.find({
-      hotelId:   req.user.hotelId,
-      createdAt: { $gte: today, $lt: tomorrow },
+      hotelId: req.user.hotelId,
+      $or: [
+        { status: 'pending',  createdAt:  { $gte: today, $lt: tomorrow } },
+        { status: 'received', receivedAt: { $gte: today, $lt: tomorrow } },
+        { status: 'disputed', receivedAt: { $gte: today, $lt: tomorrow } },
+      ],
     }).sort({ createdAt: -1 });
 
     const received = payments.filter(p => p.status === 'received');
