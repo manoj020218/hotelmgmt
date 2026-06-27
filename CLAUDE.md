@@ -31,93 +31,115 @@ pm2 logs hotelqr-api --lines 15 --nostream
 
 ---
 
-## ACTIVE IMPLEMENTATION PLAN
-### Feature: Table Session Lifecycle — Bill Pending + Order History
+## COMPLETED FEATURES
 
-**Status: IN PROGRESS**
+### Table Session Lifecycle ✅
+**Status: COMPLETE — deployed 2026-06-27**
 
-### Problem
-Currently when waiter marks food `served`, the table immediately becomes `available`.
-This causes issues: customer hasn't paid, kitchen/waiter has no visibility of bill status.
+Table statuses: `available → occupied → bill_pending → available`
+- `sessionStartedAt` — when customer session began (booking timestamp)  
+- `sessionClosedAt` — when table was freed (checkout timestamp)
+- `sessionBillTotal` — running total across all served orders in one session
+- `hasNewOrder` — Boolean, pulses "New Order" badge on table card
+- History kept for `orderHistoryDays` days (1–7, default 1, set in Settings → Operations)
 
-### New Table Status Flow
+Socket event `table:status` → `{ tableId, tableNumber, status, hasNewOrder, sessionBillTotal }`
+
+**Admin TableManager:**
+- bill_pending cards show ₹ total in amber
+- "New Order ●" pulse badge
+- Click occupied/bill_pending → Session Modal (all orders + timestamps + pending payment confirm + Print button)
+- History Modal (last N days, Print per order)
+- Real-time via `table:status` socket
+
+---
+
+### Payment Notification Flow ✅
+**Status: COMPLETE — deployed 2026-06-27**
+
+**Customer flow:**
+1. Customer on `/payment/:orderId` — sees bill summary
+2. **Scan & Pay (Recommended)** → shows dynamic Canvas QR generated from `upi://pay?pa=...&am=AMOUNT&cu=INR`  
+   → Customer opens any UPI app, scans → amount pre-filled → pays → taps "Payment Done — Notify Staff"
+3. **GPay / PhonePe** → Android `intent://` URI (Chrome passes to OS to open app)  
+   → If payment completes, tap "I've Completed UPI Payment" → notify staff
+4. **Cash / Card** → taps button → `POST /api/payments/request/:orderId` → socket `payment:pending`
+   → "Waiter has been notified" screen
+
+**Staff notification:**
+- Socket `payment:pending` → waiter app "Payments" tab shows card with method selector + "Mark Collected"
+- Admin session modal shows pending payment banner + Confirm
+- `PATCH /api/payments/:id/mark-received` → socket `payment:received` → customer sees Download/Share receipt
+
+**Receipt:**
+- `client/src/utils/receiptCanvas.js` — 58mm thermal-style Canvas receipt
+- Customer: Download PNG + Share (Web Share API opens share sheet)
+- Admin/Waiter: Print → `window.print()` with `@page { size: 58mm auto }`
+
+**"Same QR = Pay too" — Smart menu landing:**
+- Customer re-scans table QR → `/menu?hotel=X&table=TOKEN`
+- If `lastOrder` in sessionStorage: banner shows **"Track Order"** + **"Pay Bill"** buttons
+- "Pay Bill" → navigates to `/payment/:orderId`
+
+**New API endpoints:**
+- `POST /api/payments/request/:orderId` — customer (sessionId) or staff
+- `GET /api/payments/pending` — staff (admin/waiter)
+
+---
+
+### Waiter Assignment Modes ✅
+Three modes selectable in Settings → Staff & Assignment:
+- **table**: pre-assign waiter per table zone, auto-assign on order
+- **manual**: admin dispatches per order from Live Orders screen
+- **claim**: waiters self-claim from shared pool
+
+---
+
+### Other Completed Features
+- Menu: half/full plate prices, WebP upload (sharp@0.32.6 for Node 18.14.0), custom course types
+- Tables: QR code with table number label for printing
+- Settings → Operations: Order History Retention (1–7 days), KDS toggle, Modification Window
+- Settings → Payment: UPI ID, static QR upload, receipt flow
+- Auto deploy: `pnpm deploy` = build + pscp upload via `deploy/upload-dist.mjs`
+
+---
+
+## DB Model Reference
+
+### Table
+```js
+status:           enum ['available','occupied','reserved','blocked','bill_pending']
+currentOrderId:   ObjectId ref Order
+sessionStartedAt: Date   // when session began
+sessionClosedAt:  Date   // when table was freed
+sessionBillTotal: Number // running total for session
+hasNewOrder:      Boolean
+assignedWaiterId: ObjectId ref User
 ```
-available ──[customer orders]──► occupied ──[food served]──► bill_pending
-   ▲                                                              │
-   └──────────────[admin/waiter CHECKOUT]────────────────────────┘
-   
-bill_pending ──[new order arrives]──► occupied (hasNewOrder flash)
+
+### Hotel.settings
+```js
+waiterMode:             enum ['table','manual','claim']  default 'table'
+orderHistoryDays:       Number  default 1, min 1, max 7
+kdsEnabled:             Boolean
+tableVisibilityPublic:  Boolean
+orderModificationWindow: Number (minutes)
 ```
 
-### Files to Change (9 total)
+### Payment
+```js
+orderId, tableNumber, amount, method, status (pending/received/disputed)
+receivedBy: ObjectId ref User
+receivedAt: Date
+receiptUrl: String
+```
 
-#### Server (6 files)
-
-**1. `server/src/models/Table.js`**
-- Add `'bill_pending'` to status enum
-- Add `sessionStartedAt: Date` — when current customer session began
-- Add `hasNewOrder: Boolean` — pulses "New Order" on the table card
-- Add `sessionBillTotal: Number` — running total across session orders
-
-**2. `server/src/models/Hotel.js`**
-- Add `settings.orderHistoryDays: Number` (default: 1, min: 1, max: 7)
-
-**3. `server/src/controllers/order.controller.js`**
-- `placeOrder`: remove 'occupied' block; allow orders during 'occupied'/'bill_pending'
-  - New session (available/reserved): set `sessionStartedAt`, reset `sessionBillTotal=0`, `hasNewOrder=false`
-  - Continue session (occupied/bill_pending): `status→occupied`, `hasNewOrder=true`, update `currentOrderId`
-  - Emit `table:status` after table update
-- `updateStatus` (served): table → `bill_pending` (not `available`), add bill to `sessionBillTotal`
-  - Emit `table:status` with new sessionBillTotal
-
-**4. `server/src/controllers/table.controller.js`**
-- `getAllTables`: populate `currentOrderId` with `status bill items`
-- Add `getTableSession(tableId)` → all orders since `sessionStartedAt` sorted asc
-- Add `checkoutTable(tableId)` → status=available, clear session fields, emit `table:status`
-- Add `getTableHistory(tableId)` → orders from last `orderHistoryDays` days
-
-**5. `server/src/routes/table.routes.js`**
-- Add `GET /:tableId/session` (admin + waiter)
-- Add `POST /:tableId/checkout` (admin + waiter)
-- Add `GET /:tableId/history` (admin)
-
-**6. `server/src/controllers/settings.controller.js`**
-- `updateOperations`: handle `orderHistoryDays` (clamp 1–7)
-
-#### Client (3 files)
-
-**7. `client/src/api/table.api.js`**
-- Add `getTableSession(tableId)`
-- Add `checkoutTable(tableId)`
-- Add `getTableHistory(tableId)`
-
-**8. `client/src/views/admin/TableManager.jsx`** ← MAJOR REWRITE
-- Status colors: `bill_pending` = amber
-- Table card: show `₹{sessionBillTotal}` + "Bill Pending" when bill_pending
-- Table card: "New Order ●" pulsing badge when `hasNewOrder=true`
-- Clicking occupied/bill_pending table → **Session Modal**
-  - Fetches GET /session
-  - Shows each order with timestamp + items + subtotal
-  - Grand total at bottom
-  - "Checkout — Customer Done" button
-  - "View History" button (opens History Modal)
-- **History Modal**
-  - Fetches GET /history
-  - Shows orders from last N days with timestamps
-- Socket: listen to `table:status` to update cards in real-time
-
-**9. `client/src/views/admin/Settings.jsx`**
-- General tab → Operations section: add "Order History Retention (days, 1–7)" field
-- Initialize `ops.orderHistoryDays` from `h.settings?.orderHistoryDays ?? 1`
-
-### Socket Events
-| Event | Payload | When emitted |
-|-------|---------|-------------|
-| `table:status` | `{ tableId, tableNumber, status, hasNewOrder, sessionBillTotal }` | placeOrder, updateStatus(served), checkoutTable, updateTableStatus |
-
-### Invariants
-- `sessionStartedAt` is set ONLY when table transitions from available/reserved → occupied
-- `sessionBillTotal` accumulates across all served orders in session; reset on checkout
-- `hasNewOrder` set true when new order arrives during occupied/bill_pending; cleared on serve or checkout
-- History query: `Order.find({ tableId, createdAt: { $gte: now - orderHistoryDays * 24h } })`
-- Checkout allowed from any status (admin); waiter only sees it when bill_pending
+## Socket Events
+| Event | Payload | When |
+|-------|---------|------|
+| `table:status` | `{ tableId, tableNumber, status, hasNewOrder, sessionBillTotal }` | placeOrder, served, checkout, updateStatus |
+| `payment:pending` | `{ paymentId, orderId, tableNumber, tableId, amount, method }` | customer requests payment |
+| `payment:received` | `{ paymentId, orderId, amount, method, tableNumber, receiptUrl }` | staff confirms collection |
+| `order:new` | `{ order }` | new order placed |
+| `order:ready` | `{ orderId }` | KDS marks ready |
+| `order:served` | `{ orderId }` | waiter marks served |
