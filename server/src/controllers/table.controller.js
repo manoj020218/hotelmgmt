@@ -48,6 +48,7 @@ async function getAllTables(req, res, next) {
   try {
     const tables = await Table.find({ hotelId: req.user.hotelId })
       .populate('currentOrderId', 'status bill')
+      .populate('assignedWaiterId', 'name')
       .sort({ tableNumber: 1 });
 
     res.json({ tables });
@@ -170,7 +171,26 @@ async function getTableQR(req, res, next) {
   }
 }
 
+// ── PATCH /api/tables/:tableId/assign-waiter ─────────────────────────────────
+async function assignWaiterToTable(req, res, next) {
+  try {
+    const { waiterId } = req.body;
+
+    const table = await Table.findOneAndUpdate(
+      { _id: req.params.tableId, hotelId: req.user.hotelId },
+      { assignedWaiterId: waiterId || null },
+      { new: true }
+    ).populate('assignedWaiterId', 'name');
+
+    if (!table) return res.status(404).json({ error: 'Table not found' });
+
+    res.json({ table });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getPublicTables, getAllTables, createTable,
-  updateTableStatus, addNote, deleteNote, getTableQR,
+  updateTableStatus, addNote, deleteNote, getTableQR, assignWaiterToTable,
 };

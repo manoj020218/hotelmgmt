@@ -18,6 +18,9 @@ export const updateKitchen = (data) =>
 export const updatePayment = (data) =>
   api.patch('/settings/payment', data).then(r => r.data)
 
+export const updateWaiterMode = (waiterMode) =>
+  api.patch('/settings/waiter-mode', { waiterMode }).then(r => r.data)
+
 export const uploadUpiQr = (file) => {
   const form = new FormData()
   form.append('qrImage', file)

@@ -14,3 +14,6 @@ export const addTableNote = (tableId, body) =>
 
 export const getTableQR = (tableId) =>
   api.get(`/tables/${tableId}/qr`).then(r => r.data)
+
+export const assignTableWaiter = (tableId, waiterId) =>
+  api.patch(`/tables/${tableId}/assign-waiter`, { waiterId }).then(r => r.data)

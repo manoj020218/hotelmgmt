@@ -6,6 +6,7 @@ const Table    = require('../models/Table');
 const Hotel    = require('../models/Hotel');
 const MenuItem = require('../models/MenuItem');
 const Payment  = require('../models/Payment');
+const User     = require('../models/User');
 
 const { calculateBill }          = require('../services/gst.service');
 const { assignWaiter, releaseOrder } = require('../services/waiterAssign.service');
@@ -80,19 +81,23 @@ async function placeOrder(req, res, next) {
       currentOrderId: order._id,
     });
 
-    // Auto-assign waiter
+    // Assign waiter based on hotel's waiterMode
     let assignedWaiter = null;
-    if (hotel.settings.autoWaiterAssign) {
-      const result = await assignWaiter(table.hotelId, order._id);
-      if (result.waiter) {
-        assignedWaiter = result.waiter;
+    const waiterMode = hotel.settings.waiterMode || 'table';
+
+    if (waiterMode === 'table' && table.assignedWaiterId) {
+      assignedWaiter = await User.findOne({ _id: table.assignedWaiterId, isActive: true });
+      if (assignedWaiter) {
         await Order.findByIdAndUpdate(order._id, {
           assignedWaiterId: assignedWaiter._id,
           assignedAt:       new Date(),
           status:           'assigned',
         });
+        assignedWaiter.activeOrderIds.push(order._id);
+        await assignedWaiter.save();
       }
     }
+    // 'manual' and 'claim' modes: order stays 'placed', assigned later
 
     // Socket emit — clients expect { order } with full order object
     const orderForEmit = order.toObject();
@@ -358,7 +363,66 @@ async function orderHistory(req, res, next) {
   }
 }
 
+// ── PATCH /api/orders/:orderId/assign-waiter (Option B — admin manual assign) ─
+async function assignOrderWaiter(req, res, next) {
+  try {
+    const { waiterId } = req.body;
+
+    const order = await Order.findOneAndUpdate(
+      { _id: req.params.orderId, hotelId: req.user.hotelId },
+      {
+        assignedWaiterId: waiterId || null,
+        assignedAt:       waiterId ? new Date() : null,
+        status:           waiterId ? 'assigned' : 'placed',
+      },
+      { new: true }
+    ).populate('assignedWaiterId', 'name phone');
+
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    if (waiterId) {
+      emitToHotel(order.hotelId, 'order:assigned', {
+        orderId:    order._id,
+        waiterId,
+        waiterName: order.assignedWaiterId?.name,
+      });
+    }
+
+    res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── PATCH /api/orders/:orderId/claim (Option C — waiter self-claims) ──────────
+async function claimOrder(req, res, next) {
+  try {
+    const order = await Order.findOne({ _id: req.params.orderId, hotelId: req.user.hotelId });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.assignedWaiterId) return res.status(409).json({ error: 'Order already claimed' });
+
+    order.assignedWaiterId = req.user._id;
+    order.assignedAt       = new Date();
+    order.status           = 'assigned';
+    await order.save();
+
+    req.user.activeOrderIds.push(order._id);
+    await req.user.save();
+
+    emitToHotel(order.hotelId, 'order:assigned', {
+      orderId:    order._id,
+      waiterId:   req.user._id,
+      waiterName: req.user.name,
+    });
+
+    res.json({ order });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   placeOrder, getOrder, getOrderByTable, modifyOrder,
   updateStatus, adminLiveOrders, waiterOrders, orderHistory,
+  assignOrderWaiter, claimOrder,
 };

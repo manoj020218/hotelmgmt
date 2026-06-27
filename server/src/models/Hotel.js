@@ -20,6 +20,7 @@ const hotelSchema = new mongoose.Schema({
     receiptFlow:              { type: String,  enum: ['customer', 'admin', 'both'], default: 'both' },
     autoWaiterAssign:         { type: Boolean, default: true },
     orderModificationWindow:  { type: Number,  default: 5 },
+    waiterMode:               { type: String,  enum: ['table', 'manual', 'claim'], default: 'table' },
   },
   fcmTopics: {
     admin:   { type: String, default: '' },

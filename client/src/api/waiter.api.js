@@ -17,3 +17,6 @@ export const updateWaiter = (waiterId, data) =>
 
 export const deleteWaiter = (waiterId) =>
   api.delete(`/waiters/${waiterId}`).then(r => r.data)
+
+export const getWaitersOnly = () =>
+  api.get('/waiters').then(r => ({ waiters: (r.data.waiters ?? []).filter(w => w.role === 'waiter' && w.isActive !== false) }))

@@ -16,6 +16,7 @@ const tableSchema = new mongoose.Schema({
   notes:         [noteSchema],
   qrCodeUrl:     { type: String, default: '' },
   qrToken:       { type: String, default: '' },
+  assignedWaiterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   reservedFor:   { type: String, default: '' },
   reservedAt:    { type: Date, default: null },
   createdAt:     { type: Date, default: Date.now },

@@ -20,3 +20,9 @@ export const getLiveOrders = () =>
 
 export const getMyOrders = () =>
   api.get('/orders/waiter/mine').then(r => r.data)
+
+export const assignOrderWaiter = (orderId, waiterId) =>
+  api.patch(`/orders/${orderId}/assign-waiter`, { waiterId }).then(r => r.data)
+
+export const claimOrder = (orderId) =>
+  api.patch(`/orders/${orderId}/claim`).then(r => r.data)

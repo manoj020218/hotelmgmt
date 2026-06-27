@@ -148,4 +148,25 @@ async function uploadUpiQr(req, res, next) {
   }
 }
 
-module.exports = { getSettings, updateHotel, updateGst, updateOperations, updateKitchen, updatePayment, uploadUpiQr };
+// ── PATCH /api/settings/waiter-mode ──────────────────────────────────────────
+async function updateWaiterMode(req, res, next) {
+  try {
+    const { waiterMode } = req.body;
+    if (!['table', 'manual', 'claim'].includes(waiterMode)) {
+      return res.status(400).json({ error: 'waiterMode must be table, manual, or claim' });
+    }
+
+    const hotel = await Hotel.findByIdAndUpdate(
+      req.user.hotelId,
+      { 'settings.waiterMode': waiterMode },
+      { new: true, runValidators: true }
+    );
+    if (!hotel) return res.status(404).json({ error: 'Hotel not found' });
+
+    res.json({ hotel });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getSettings, updateHotel, updateGst, updateOperations, updateKitchen, updatePayment, uploadUpiQr, updateWaiterMode };

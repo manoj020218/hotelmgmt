@@ -5,7 +5,7 @@ const { upiUpload } = require('../config/storage');
 const { toWebp }    = require('../config/imageProcessor');
 const {
   getSettings, updateHotel, updateGst,
-  updateOperations, updateKitchen, updatePayment, uploadUpiQr,
+  updateOperations, updateKitchen, updatePayment, uploadUpiQr, updateWaiterMode,
 } = require('../controllers/settings.controller');
 
 const adminOnly = [auth, guard('admin')];
@@ -16,6 +16,7 @@ router.patch('/gst',               ...adminOnly, updateGst);
 router.patch('/operations',        ...adminOnly, updateOperations);
 router.patch('/kitchen',           ...adminOnly, updateKitchen);
 router.patch('/payment',           ...adminOnly, updatePayment);
-router.post('/upi-qr', ...adminOnly, upiUpload.single('qrImage'), toWebp({ maxWidth: 600, quality: 85 }), uploadUpiQr);
+router.post('/upi-qr',      ...adminOnly, upiUpload.single('qrImage'), toWebp({ maxWidth: 600, quality: 85 }), uploadUpiQr);
+router.patch('/waiter-mode', ...adminOnly, updateWaiterMode);
 
 module.exports = router;
