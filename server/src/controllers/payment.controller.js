@@ -22,6 +22,72 @@ function buildUpiLinks(hotel, amount, tableNumber) {
   };
 }
 
+// ── POST /api/payments/request/:orderId ──────────────────────────────────────
+// Customer notifies staff they want to pay (creates pending payment record)
+async function requestPayment(req, res, next) {
+  try {
+    const { method = 'cash' } = req.body;
+    const allowed = ['cash', 'card', 'upi', 'gpay', 'phonepay'];
+    if (!allowed.includes(method)) return res.status(400).json({ error: 'Invalid method' });
+
+    const order = await Order.findById(req.params.orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Allow customer (via sessionId) or authenticated staff
+    const authHeader = req.headers.authorization;
+    let isAuth = false;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try { jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET); isAuth = true; } catch {}
+    }
+    const sessionMatch = req.query.sessionId && req.query.sessionId === order.sessionId;
+    if (!isAuth && !sessionMatch) return res.status(403).json({ error: 'Access denied' });
+
+    // Find or create payment record
+    let payment = order.paymentId ? await Payment.findById(order.paymentId) : null;
+
+    if (!payment) {
+      payment = await Payment.create({
+        hotelId:     order.hotelId,
+        orderId:     order._id,
+        tableNumber: order.tableNumber,
+        amount:      order.bill?.total ?? 0,
+        method,
+        status:      'pending',
+      });
+      await Order.findByIdAndUpdate(order._id, { paymentId: payment._id });
+    } else if (payment.status === 'pending') {
+      payment.method = method;
+      await payment.save();
+    } else {
+      return res.status(409).json({ error: `Payment already ${payment.status}` });
+    }
+
+    emitToHotel(order.hotelId, 'payment:pending', {
+      paymentId:   payment._id,
+      orderId:     order._id,
+      tableNumber: order.tableNumber,
+      tableId:     order.tableId,
+      amount:      payment.amount,
+      method,
+    });
+
+    res.json({ payment });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── GET /api/payments/pending ─────────────────────────────────────────────────
+async function getPendingPayments(req, res, next) {
+  try {
+    const payments = await Payment.find({ hotelId: req.user.hotelId, status: 'pending' })
+      .sort({ createdAt: -1 });
+    res.json({ payments });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ── GET /api/payments/order/:orderId ─────────────────────────────────────────
 async function getPaymentByOrder(req, res, next) {
   try {
@@ -170,4 +236,4 @@ async function todayPayments(req, res, next) {
   }
 }
 
-module.exports = { getPaymentByOrder, markReceived, getReceipt, disputePayment, todayPayments };
+module.exports = { requestPayment, getPendingPayments, getPaymentByOrder, markReceived, getReceipt, disputePayment, todayPayments };

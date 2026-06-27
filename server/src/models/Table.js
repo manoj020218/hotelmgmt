@@ -14,6 +14,7 @@ const tableSchema = new mongoose.Schema({
   status:           { type: String, enum: ['available', 'occupied', 'reserved', 'blocked', 'bill_pending'], default: 'available' },
   currentOrderId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
   sessionStartedAt: { type: Date,    default: null },
+  sessionClosedAt:  { type: Date,    default: null },
   sessionBillTotal: { type: Number,  default: 0 },
   hasNewOrder:      { type: Boolean, default: false },
   notes:         [noteSchema],

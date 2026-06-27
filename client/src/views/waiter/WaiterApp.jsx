@@ -2,12 +2,62 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getMyOrders, updateOrderStatus } from '../../api/order.api'
 import { toggleAvailability } from '../../api/waiter.api'
+import { getPendingPayments, markPaymentReceived } from '../../api/payment.api'
 import { useAuthStore } from '../../stores/authStore'
 import { useSocket } from '../../hooks/useSocket'
 import { useFCM } from '../../hooks/useFCM'
 import { Button } from '../../components/Button'
 import { OrderStatusBadge } from '../../components/Badge'
 import { Spinner } from '../../components/Spinner'
+
+// ── Payment Collect Card ───────────────────────────────────────────────────────
+
+function PaymentCollectCard({ payment, onConfirmed }) {
+  const [method,     setMethod]     = useState(payment.method ?? 'cash')
+  const [confirming, setConfirming] = useState(false)
+
+  const handleConfirm = async () => {
+    setConfirming(true)
+    try {
+      await markPaymentReceived(payment._id, { method })
+      onConfirmed(payment._id)
+    } catch {
+      setConfirming(false)
+    }
+  }
+
+  const fmtTime = d => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+  return (
+    <div className="bg-bgCard border border-yellow/30 rounded-xl p-4 space-y-3">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-semibold text-text">Table {payment.tableNumber}</p>
+          <p className="text-xs text-textMuted mt-0.5">Requested at {fmtTime(payment.createdAt)}</p>
+        </div>
+        <p className="text-accent font-bold text-lg">₹{payment.amount}</p>
+      </div>
+      <select
+        value={method}
+        onChange={e => setMethod(e.target.value)}
+        className="w-full bg-bgElevated border border-border rounded-lg px-3 py-2 text-text text-sm focus:outline-none focus:border-accent"
+      >
+        <option value="cash">Cash</option>
+        <option value="card">Card</option>
+        <option value="upi">UPI</option>
+        <option value="gpay">GPay</option>
+        <option value="phonepay">PhonePe</option>
+      </select>
+      <button
+        onClick={handleConfirm}
+        disabled={confirming}
+        className="w-full py-2 bg-green/10 border border-green/40 text-green rounded-xl text-sm font-semibold hover:bg-green/20 disabled:opacity-50 transition-colors"
+      >
+        {confirming ? 'Confirming…' : 'Mark Payment Collected ✓'}
+      </button>
+    </div>
+  )
+}
 
 // ── Reject Reason Modal ────────────────────────────────────────────────────────
 function RejectModal({ orderId, onConfirm, onCancel }) {
@@ -114,20 +164,22 @@ export default function WaiterApp() {
   const navigate = useNavigate()
   useFCM({ enabled: true })
 
-  const [tab,          setTab]          = useState('active')     // 'active' | 'completed' | 'rating'
-  const [orders,       setOrders]       = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [available,    setAvailable]    = useState(true)
-  const [readyOrderIds,setReadyOrderIds] = useState(new Set())
-  const [rejectTarget, setRejectTarget] = useState(null)
+  const [tab,             setTab]             = useState('active')
+  const [orders,          setOrders]          = useState([])
+  const [loading,         setLoading]         = useState(true)
+  const [available,       setAvailable]       = useState(true)
+  const [readyOrderIds,   setReadyOrderIds]   = useState(new Set())
+  const [rejectTarget,    setRejectTarget]    = useState(null)
+  const [pendingPayments, setPendingPayments] = useState([])
 
-  // ── Load orders ──────────────────────────────────────────────────────────────
+  // ── Load orders + pending payments ───────────────────────────────────────────
   const loadOrders = useCallback(async () => {
     try {
-      const data = await getMyOrders()
-      setOrders(data.orders ?? [])
+      const [orderData, payData] = await Promise.all([getMyOrders(), getPendingPayments()])
+      setOrders(orderData.orders ?? [])
+      setPendingPayments(payData.payments ?? [])
     } catch {
-      // silent — socket will keep orders fresh
+      // silent — socket will keep data fresh
     } finally {
       setLoading(false)
     }
@@ -159,6 +211,17 @@ export default function WaiterApp() {
       setOrders(prev => prev.map(o =>
         o._id === orderId ? { ...o, status: 'served' } : o
       ))
+    })
+
+    on('payment:pending', (payment) => {
+      setPendingPayments(prev => {
+        if (prev.some(p => p._id === payment.paymentId)) return prev
+        return [{ _id: payment.paymentId, ...payment }, ...prev]
+      })
+    })
+
+    on('payment:received', ({ paymentId }) => {
+      setPendingPayments(prev => prev.filter(p => p._id !== paymentId))
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId])
@@ -197,6 +260,10 @@ export default function WaiterApp() {
     } catch {
       // ignore
     }
+  }
+
+  const handlePaymentConfirmed = (paymentId) => {
+    setPendingPayments(prev => prev.filter(p => p._id !== paymentId))
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────────
@@ -241,6 +308,7 @@ export default function WaiterApp() {
       <div className="flex border-b border-border">
         {[
           { key: 'active',    label: `My Orders (${activeOrders.length})` },
+          { key: 'payments',  label: `Payments${pendingPayments.length ? ` (${pendingPayments.length})` : ''}` },
           { key: 'completed', label: 'Completed' },
           { key: 'rating',    label: 'My Rating' },
         ].map(t => (
@@ -274,6 +342,19 @@ export default function WaiterApp() {
                 onReject={handleReject}
                 highlight={readyOrderIds.has(order._id)}
               />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Pending Payments */}
+      {tab === 'payments' && (
+        <div className="px-4 py-4 space-y-3">
+          {pendingPayments.length === 0 ? (
+            <p className="text-center text-textMuted py-12">No pending payments</p>
+          ) : (
+            pendingPayments.map(p => (
+              <PaymentCollectCard key={p._id} payment={p} onConfirmed={handlePaymentConfirmed} />
             ))
           )}
         </div>

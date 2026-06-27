@@ -3,11 +3,14 @@ const auth   = require('../middleware/auth');
 const guard  = require('../middleware/roleGuard');
 
 const {
+  requestPayment, getPendingPayments,
   getPaymentByOrder, markReceived, getReceipt,
   disputePayment, todayPayments,
 } = require('../controllers/payment.controller');
 
 // Static routes BEFORE dynamic /:paymentId
+router.post('/request/:orderId',           requestPayment);                              // customer (sessionId) or staff
+router.get('/pending',                     auth, guard('admin', 'waiter'), getPendingPayments);
 router.get('/admin/today',                 auth, guard('admin'),           todayPayments);
 router.get('/order/:orderId',              getPaymentByOrder);
 

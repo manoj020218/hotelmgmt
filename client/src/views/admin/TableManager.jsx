@@ -4,9 +4,11 @@ import {
   getAdminTables, createTable, updateTableStatus,
   getTableQR, getTableSession, checkoutTable, getTableHistory,
 } from '../../api/table.api'
+import { getPendingPayments, markPaymentReceived } from '../../api/payment.api'
 import { useAuthStore } from '../../stores/authStore'
 import { useSocket } from '../../hooks/useSocket'
 import { Spinner } from '../../components/Spinner'
+import { generateReceiptCanvas, printCanvas } from '../../utils/receiptCanvas'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -61,21 +63,28 @@ function QRModal({ tableNumber, dataUrl, onClose }) {
 
 // ── Session Modal (current visit detail) ─────────────────────────────────────
 
-function SessionModal({ table, onClose, onCheckedOut, onShowHistory }) {
-  const [orders,  setOrders]  = useState([])
-  const [total,   setTotal]   = useState(table.sessionBillTotal ?? 0)
-  const [loading, setLoading] = useState(true)
-  const [checking, setChecking] = useState(false)
+function SessionModal({ table, onClose, onCheckedOut, onShowHistory, hotelName }) {
+  const [orders,       setOrders]       = useState([])
+  const [total,        setTotal]        = useState(table.sessionBillTotal ?? 0)
+  const [loading,      setLoading]      = useState(true)
+  const [checking,     setChecking]     = useState(false)
+  const [pendingPays,  setPendingPays]  = useState([])
+  const [payMethod,    setPayMethod]    = useState('cash')
+  const [confirming,   setConfirming]   = useState(false)
 
   useEffect(() => {
-    getTableSession(table._id)
-      .then(d => {
-        setOrders(d.orders ?? [])
-        setTotal(d.sessionBillTotal ?? 0)
+    Promise.all([getTableSession(table._id), getPendingPayments()])
+      .then(([session, paysData]) => {
+        setOrders(session.orders ?? [])
+        setTotal(session.sessionBillTotal ?? 0)
+        const myPays = (paysData.payments ?? []).filter(
+          p => p.tableNumber === table.tableNumber
+        )
+        setPendingPays(myPays)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [table._id])
+  }, [table._id, table.tableNumber])
 
   const handleCheckout = async () => {
     setChecking(true)
@@ -86,6 +95,28 @@ function SessionModal({ table, onClose, onCheckedOut, onShowHistory }) {
     } catch {
       setChecking(false)
     }
+  }
+
+  const handleConfirmPayment = async (paymentId) => {
+    setConfirming(true)
+    try {
+      await markPaymentReceived(paymentId, { method: payMethod })
+      setPendingPays(prev => prev.filter(p => p._id !== paymentId))
+    } catch {}
+    finally { setConfirming(false) }
+  }
+
+  const handlePrint = () => {
+    const allItems = orders.flatMap(o => o.items ?? [])
+    const canvas = generateReceiptCanvas({
+      hotelName,
+      tableNumber:     table.tableNumber,
+      items:           allItems,
+      bill:            { total, subtotal: total },
+      sessionBillTotal: total,
+      timestamp:       new Date(),
+    })
+    printCanvas(canvas)
   }
 
   return (
@@ -141,7 +172,44 @@ function SessionModal({ table, onClose, onCheckedOut, onShowHistory }) {
               <span>Total Bill</span>
               <span className="text-accent text-lg">₹{total.toFixed(0)}</span>
             </div>
+
+            {/* Pending payment confirmation */}
+            {pendingPays.length > 0 && (
+              <div className="bg-yellow/10 border border-yellow/30 rounded-xl p-3 space-y-2">
+                <p className="text-xs font-semibold text-yellow">
+                  Payment Requested — ₹{pendingPays[0].amount} ({pendingPays[0].method})
+                </p>
+                <div className="flex gap-2">
+                  <select
+                    value={payMethod}
+                    onChange={e => setPayMethod(e.target.value)}
+                    className="flex-1 bg-bgElevated border border-border rounded-lg px-2 py-1.5 text-text text-xs focus:outline-none"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="upi">UPI</option>
+                    <option value="gpay">GPay</option>
+                    <option value="phonepay">PhonePe</option>
+                  </select>
+                  <button
+                    onClick={() => handleConfirmPayment(pendingPays[0]._id)}
+                    disabled={confirming}
+                    className="px-3 py-1.5 bg-green/10 border border-green/40 text-green rounded-lg text-xs font-semibold disabled:opacity-50"
+                  >
+                    {confirming ? '…' : 'Confirm Collected'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
+              <button
+                onClick={handlePrint}
+                className="px-3 py-2 bg-bgElevated border border-border rounded-xl text-xs text-textMuted hover:text-text transition-colors"
+                title="Print thermal receipt"
+              >
+                Print
+              </button>
               <button
                 onClick={() => { onClose(); onShowHistory(table) }}
                 className="flex-1 px-3 py-2 bg-bgElevated border border-border rounded-xl text-xs text-textMuted hover:text-text transition-colors"
@@ -165,7 +233,7 @@ function SessionModal({ table, onClose, onCheckedOut, onShowHistory }) {
 
 // ── History Modal ─────────────────────────────────────────────────────────────
 
-function HistoryModal({ table, onClose }) {
+function HistoryModal({ table, onClose, hotelName }) {
   const [orders,  setOrders]  = useState([])
   const [days,    setDays]    = useState(1)
   const [loading, setLoading] = useState(true)
@@ -176,6 +244,17 @@ function HistoryModal({ table, onClose }) {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [table._id])
+
+  const handlePrintOrder = (order) => {
+    const canvas = generateReceiptCanvas({
+      hotelName,
+      tableNumber: table.tableNumber,
+      items: order.items ?? [],
+      bill: order.bill ?? {},
+      timestamp: order.createdAt,
+    })
+    printCanvas(canvas)
+  }
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -210,7 +289,15 @@ function HistoryModal({ table, onClose }) {
                 ))}
                 <div className="flex justify-between text-xs font-semibold text-text border-t border-border/50 pt-1">
                   <span>Order Total</span>
-                  <span>₹{order.bill?.total?.toFixed(0) ?? '—'}</span>
+                  <div className="flex items-center gap-2">
+                    <span>₹{order.bill?.total?.toFixed(0) ?? '—'}</span>
+                    <button
+                      onClick={() => handlePrintOrder(order)}
+                      className="text-xs text-textMuted hover:text-accent underline"
+                    >
+                      Print
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
@@ -312,8 +399,9 @@ export default function TableManager() {
   const [sessionModal, setSessionModal] = useState(null) // table object
   const [historyModal, setHistoryModal] = useState(null) // table object
 
-  const hotelId = useAuthStore(s => s.user?.hotelId)
-  const user    = useAuthStore(s => s.user)
+  const hotelId  = useAuthStore(s => s.user?.hotelId)
+  const user     = useAuthStore(s => s.user)
+  const hotelName = useAuthStore(s => s.user?.hotelName ?? s.hotel?.name ?? '')
 
   const load = useCallback(() => {
     getAdminTables()
@@ -453,6 +541,7 @@ export default function TableManager() {
       {sessionModal && (
         <SessionModal
           table={sessionModal}
+          hotelName={hotelName}
           onClose={() => setSessionModal(null)}
           onCheckedOut={handleCheckedOut}
           onShowHistory={t => { setSessionModal(null); setHistoryModal(t) }}
@@ -460,7 +549,7 @@ export default function TableManager() {
       )}
 
       {historyModal && (
-        <HistoryModal table={historyModal} onClose={() => setHistoryModal(null)} />
+        <HistoryModal table={historyModal} hotelName={hotelName} onClose={() => setHistoryModal(null)} />
       )}
     </div>
   )

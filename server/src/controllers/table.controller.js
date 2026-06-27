@@ -221,6 +221,7 @@ async function checkoutTable(req, res, next) {
         sessionStartedAt: null,
         sessionBillTotal: 0,
         hasNewOrder:      false,
+        sessionClosedAt:  new Date(),
       },
       { new: true }
     );
