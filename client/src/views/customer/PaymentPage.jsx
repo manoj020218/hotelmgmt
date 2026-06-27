@@ -15,6 +15,7 @@ export default function PaymentPage() {
   const [paid,     setPaid]     = useState(false)
   const [receiptUrl, setReceiptUrl] = useState('')
   const [view,     setView]     = useState('methods') // 'methods' | 'qr' | 'cash' | 'done'
+  const [upiHint,  setUpiHint]  = useState(false)
 
   useEffect(() => {
     if (!orderId) return
@@ -122,17 +123,25 @@ export default function PaymentPage() {
 
       {view === 'methods' && (
         <div className="mx-4 mt-4 space-y-3">
+          {/* UPI hint — shown after tapping a UPI button */}
+          {upiHint && (
+            <div className="bg-yellow/10 border border-yellow/30 rounded-xl px-4 py-3 text-xs text-yellow leading-relaxed">
+              If you see "Something went wrong" in the payment app — please use <strong>Scan QR</strong> below or ask the waiter to collect payment.
+            </div>
+          )}
+
           {/* GPay */}
           {upiDeepLinks?.gpay && (
             <a
               data-testid="gpay-link"
               href={upiDeepLinks.gpay}
+              onClick={() => setUpiHint(true)}
               className="flex items-center gap-3 bg-bgCard border border-border rounded-xl px-4 py-4"
             >
               <span className="text-2xl">G</span>
               <div>
                 <p className="text-text font-semibold text-sm">Google Pay</p>
-                <p className="text-textMuted text-xs">Tap to pay via GPay</p>
+                <p className="text-textMuted text-xs">Tap to open GPay</p>
               </div>
             </a>
           )}
@@ -142,12 +151,13 @@ export default function PaymentPage() {
             <a
               data-testid="phonepay-link"
               href={upiDeepLinks.phonepay}
+              onClick={() => setUpiHint(true)}
               className="flex items-center gap-3 bg-bgCard border border-border rounded-xl px-4 py-4"
             >
               <span className="text-2xl">P</span>
               <div>
                 <p className="text-text font-semibold text-sm">PhonePe</p>
-                <p className="text-textMuted text-xs">Tap to pay via PhonePe</p>
+                <p className="text-textMuted text-xs">Tap to open PhonePe</p>
               </div>
             </a>
           )}
@@ -157,12 +167,13 @@ export default function PaymentPage() {
             <a
               data-testid="upi-link"
               href={upiDeepLinks.generic}
+              onClick={() => setUpiHint(true)}
               className="flex items-center gap-3 bg-bgCard border border-border rounded-xl px-4 py-4"
             >
               <span className="text-2xl">💳</span>
               <div>
                 <p className="text-text font-semibold text-sm">Other UPI App</p>
-                <p className="text-textMuted text-xs">Any UPI-enabled app</p>
+                <p className="text-textMuted text-xs">Choose from installed apps</p>
               </div>
             </a>
           )}

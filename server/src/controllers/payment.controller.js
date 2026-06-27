@@ -13,10 +13,12 @@ function buildUpiLinks(hotel, amount, tableNumber) {
   const am  = amount;
   const tn  = encodeURIComponent(`Table${tableNumber}`);
 
+  const upiParams = `pa=${pa}&pn=${pn}&am=${am}&cu=INR&tn=${tn}`;
   return {
-    gpay:     `gpay://upi/pay?pa=${pa}&pn=${pn}&am=${am}&tn=${tn}`,
-    phonepay: `phonepe://pay?pa=${pa}&pn=${pn}&am=${am}`,
-    generic:  `upi://pay?pa=${pa}&pn=${pn}&am=${am}`,
+    // Android Intent URIs — Chrome on Android passes these to the OS which launches the app
+    gpay:     `intent://pay?${upiParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`,
+    phonepay: `intent://pay?${upiParams}#Intent;scheme=upi;package=com.phonepe.app;end`,
+    generic:  `upi://pay?${upiParams}`,
   };
 }
 
