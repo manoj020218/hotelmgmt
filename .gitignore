@@ -43,3 +43,6 @@ coverage/
 # Firebase service account — contains private key, NEVER commit
 *firebase-adminsdk*.json
 google/
+
+# Deploy credentials — contains VPS password, never commit
+deploy/vps.env

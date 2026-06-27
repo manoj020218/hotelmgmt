@@ -13,6 +13,11 @@
     "build:kds":       "vite build --mode kds",
     "build:waiter":    "vite build --mode waiter",
 
+    "deploy":          "vite build && node ../deploy/upload-dist.mjs admin",
+    "deploy:kds":      "vite build --mode kds && node ../deploy/upload-dist.mjs kds",
+    "deploy:waiter":   "vite build --mode waiter && node ../deploy/upload-dist.mjs waiter",
+    "deploy:all":      "pnpm deploy && pnpm deploy:kds && pnpm deploy:waiter",
+
     "cap:init:kds":    "cap add android --config capacitor.kds.config.ts",
     "cap:init:waiter": "cap add android --config capacitor.waiter.config.ts",
 
