@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const Table  = require('../models/Table');
 const Hotel  = require('../models/Hotel');
+const Order  = require('../models/Order');
 const { emitToHotel } = require('../socket/socketHandler');
 
 // ── QR generator helper ───────────────────────────────────────────────────────
@@ -190,7 +191,79 @@ async function assignWaiterToTable(req, res, next) {
   }
 }
 
+// ── GET /api/tables/:tableId/session ─────────────────────────────────────────
+async function getTableSession(req, res, next) {
+  try {
+    const table = await Table.findOne({ _id: req.params.tableId, hotelId: req.user.hotelId });
+    if (!table) return res.status(404).json({ error: 'Table not found' });
+
+    if (!table.sessionStartedAt) return res.json({ orders: [], sessionBillTotal: 0 });
+
+    const orders = await Order.find({
+      tableId:   table._id,
+      createdAt: { $gte: table.sessionStartedAt },
+    }).sort({ createdAt: 1 });
+
+    res.json({ orders, sessionBillTotal: table.sessionBillTotal ?? 0 });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── POST /api/tables/:tableId/checkout ────────────────────────────────────────
+async function checkoutTable(req, res, next) {
+  try {
+    const table = await Table.findOneAndUpdate(
+      { _id: req.params.tableId, hotelId: req.user.hotelId },
+      {
+        status:           'available',
+        currentOrderId:   null,
+        sessionStartedAt: null,
+        sessionBillTotal: 0,
+        hasNewOrder:      false,
+      },
+      { new: true }
+    );
+    if (!table) return res.status(404).json({ error: 'Table not found' });
+
+    emitToHotel(table.hotelId, 'table:status', {
+      tableId:          table._id,
+      tableNumber:      table.tableNumber,
+      status:           'available',
+      hasNewOrder:      false,
+      sessionBillTotal: 0,
+    });
+
+    res.json({ table });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── GET /api/tables/:tableId/history ─────────────────────────────────────────
+async function getTableHistory(req, res, next) {
+  try {
+    const hotel = await Hotel.findById(req.user.hotelId);
+    const days  = Math.min(hotel?.settings?.orderHistoryDays ?? 1, 7);
+
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    const orders = await Order.find({
+      tableId:   req.params.tableId,
+      hotelId:   req.user.hotelId,
+      createdAt: { $gte: since },
+    }).sort({ createdAt: -1 });
+
+    res.json({ orders, days });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getPublicTables, getAllTables, createTable,
   updateTableStatus, addNote, deleteNote, getTableQR, assignWaiterToTable,
+  getTableSession, checkoutTable, getTableHistory,
 };

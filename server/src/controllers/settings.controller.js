@@ -67,7 +67,7 @@ async function updateGst(req, res, next) {
 // ── PATCH /api/settings/operations ───────────────────────────────────────────
 async function updateOperations(req, res, next) {
   try {
-    const { kdsEnabled, tableVisibilityPublic, autoWaiterAssign, orderModificationWindow } = req.body;
+    const { kdsEnabled, tableVisibilityPublic, autoWaiterAssign, orderModificationWindow, orderHistoryDays } = req.body;
 
     const hotel = await Hotel.findById(req.user.hotelId);
     if (!hotel) return res.status(404).json({ error: 'Hotel not found' });
@@ -78,6 +78,7 @@ async function updateOperations(req, res, next) {
     if (tableVisibilityPublic   !== undefined) hotel.settings.tableVisibilityPublic   = tableVisibilityPublic;
     if (autoWaiterAssign        !== undefined) hotel.settings.autoWaiterAssign        = autoWaiterAssign;
     if (orderModificationWindow !== undefined) hotel.settings.orderModificationWindow = orderModificationWindow;
+    if (orderHistoryDays        !== undefined) hotel.settings.orderHistoryDays        = Math.max(1, Math.min(7, Number(orderHistoryDays)));
 
     await hotel.save();
 

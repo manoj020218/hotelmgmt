@@ -375,6 +375,7 @@ export default function Settings() {
           kdsEnabled:              h.settings?.kdsEnabled,
           tableVisibilityPublic:   h.settings?.tableVisibilityPublic,
           orderModificationWindow: h.settings?.orderModificationWindow,
+          orderHistoryDays:        h.settings?.orderHistoryDays ?? 1,
         })
         setKitchen({
           kitchenOpen:      h.settings?.kitchenOpen,
@@ -510,6 +511,9 @@ export default function Settings() {
             ))}
             <Field label="Order Modification Window (minutes)">
               <TextInput testid="mod-window-input" type="number" value={ops.orderModificationWindow} onChange={v => setOps(p => ({ ...p, orderModificationWindow: Number(v) }))} placeholder="5" />
+            </Field>
+            <Field label="Order History Retention (days, 1–7)">
+              <TextInput testid="history-days-input" type="number" value={ops.orderHistoryDays} onChange={v => setOps(p => ({ ...p, orderHistoryDays: Math.max(1, Math.min(7, Number(v))) }))} placeholder="1" />
             </Field>
             <div className="flex items-center gap-3">
               <SaveButton testid="save-ops-btn" loading={!!busy.ops} onClick={() => save('ops', updateOperations, ops)} />

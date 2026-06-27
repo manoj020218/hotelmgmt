@@ -25,8 +25,8 @@ async function placeOrder(req, res, next) {
     const table = await Table.findOne({ qrToken: tableQrToken });
     if (!table) return res.status(404).json({ error: 'Invalid QR token' });
 
-    if (table.status === 'occupied') {
-      return res.status(409).json({ error: 'Table already has an active order' });
+    if (table.status === 'blocked') {
+      return res.status(409).json({ error: 'Table is not available for orders' });
     }
 
     const hotel = await Hotel.findById(table.hotelId);
@@ -75,10 +75,25 @@ async function placeOrder(req, res, next) {
       status:      'placed',
     });
 
-    // Update table status
-    await Table.findByIdAndUpdate(table._id, {
+    // Update table for this order — new session vs continuing session
+    const isNewSession = ['available', 'reserved'].includes(table.status);
+    const tableUpdate = {
       status:         'occupied',
       currentOrderId: order._id,
+      hasNewOrder:    !isNewSession,
+    };
+    if (isNewSession) {
+      tableUpdate.sessionStartedAt = new Date();
+      tableUpdate.sessionBillTotal = 0;
+    }
+    await Table.findByIdAndUpdate(table._id, tableUpdate);
+
+    emitToHotel(table.hotelId, 'table:status', {
+      tableId:          table._id,
+      tableNumber:      table.tableNumber,
+      status:           'occupied',
+      hasNewOrder:      !isNewSession,
+      sessionBillTotal: isNewSession ? 0 : (table.sessionBillTotal ?? 0),
     });
 
     // Assign waiter based on hotel's waiterMode
@@ -275,9 +290,15 @@ async function updateStatus(req, res, next) {
     if (status === 'served') {
       order.servedAt = new Date();
 
+      // Add this order's bill to the running session total, then set bill_pending
+      const table = await Table.findById(order.tableId);
+      const newSessionTotal = (table?.sessionBillTotal ?? 0) + (order.bill?.total ?? 0);
+
       await Table.findByIdAndUpdate(order.tableId, {
-        status:         'available',
-        currentOrderId: null,
+        status:           'bill_pending',
+        currentOrderId:   order._id,
+        sessionBillTotal: newSessionTotal,
+        hasNewOrder:      false,
       });
 
       await releaseOrder(order.assignedWaiterId, order._id);
@@ -297,10 +318,24 @@ async function updateStatus(req, res, next) {
         orderId:     order._id,
         tableNumber: order.tableNumber,
       });
+      emitToHotel(order.hotelId, 'table:status', {
+        tableId:          order.tableId,
+        tableNumber:      order.tableNumber,
+        status:           'bill_pending',
+        hasNewOrder:      false,
+        sessionBillTotal: newSessionTotal,
+      });
     } else if (status === 'rejected' || status === 'cancelled') {
+      // On reject/cancel: if table is still occupied (no other active orders), free it
+      const table = await Table.findById(order.tableId);
+      const newTableStatus = (table?.status === 'occupied') ? 'available' : (table?.status ?? 'available');
+
       await Table.findByIdAndUpdate(order.tableId, {
-        status:         'available',
-        currentOrderId: null,
+        status:           newTableStatus === 'occupied' ? 'available' : newTableStatus,
+        currentOrderId:   newTableStatus === 'occupied' ? null : table?.currentOrderId,
+        sessionStartedAt: newTableStatus === 'occupied' ? null : table?.sessionStartedAt,
+        sessionBillTotal: newTableStatus === 'occupied' ? 0   : table?.sessionBillTotal,
+        hasNewOrder:      false,
       });
 
       await releaseOrder(order.assignedWaiterId, order._id);
@@ -309,6 +344,12 @@ async function updateStatus(req, res, next) {
         orderId:         order._id,
         rejectionReason: rejectionReason || '',
       });
+      if (newTableStatus === 'occupied') {
+        emitToHotel(order.hotelId, 'table:status', {
+          tableId: order.tableId, tableNumber: order.tableNumber,
+          status: 'available', hasNewOrder: false, sessionBillTotal: 0,
+        });
+      }
     }
 
     await order.save();

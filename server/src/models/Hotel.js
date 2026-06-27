@@ -21,6 +21,7 @@ const hotelSchema = new mongoose.Schema({
     autoWaiterAssign:         { type: Boolean, default: true },
     orderModificationWindow:  { type: Number,  default: 5 },
     waiterMode:               { type: String,  enum: ['table', 'manual', 'claim'], default: 'table' },
+    orderHistoryDays:         { type: Number,  default: 1, min: 1, max: 7 },
   },
   fcmTopics: {
     admin:   { type: String, default: '' },
