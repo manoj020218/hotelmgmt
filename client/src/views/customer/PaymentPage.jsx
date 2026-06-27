@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import QRCode from 'qrcode'
 import { getPaymentByOrder, requestPayment } from '../../api/payment.api'
 import { useSocket } from '../../hooks/useSocket'
 import { Button } from '../../components/Button'
@@ -19,6 +20,7 @@ export default function PaymentPage() {
   const [receiptCanvas, setReceiptCanvas] = useState(null)
   const [receiptUrl,    setReceiptUrl]    = useState('')
   const [sharing, setSharing] = useState(false)
+  const dynamicQrRef = useRef(null)
 
   const sessionId = JSON.parse(sessionStorage.getItem('lastOrder') ?? '{}').sessionId
 
@@ -29,6 +31,15 @@ export default function PaymentPage() {
       .catch(err => setError(err.response?.data?.error ?? 'Could not load payment'))
       .finally(() => setLoading(false))
   }, [orderId, sessionId])
+
+  // Generate dynamic UPI QR with exact amount pre-filled
+  useEffect(() => {
+    if (!data?.upiDeepLinks?.generic || !dynamicQrRef.current) return
+    QRCode.toCanvas(dynamicQrRef.current, data.upiDeepLinks.generic, {
+      width: 240, margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    }).catch(() => {})
+  }, [data, view])
 
   const { on } = useSocket({ orderId })
 
@@ -277,18 +288,19 @@ export default function PaymentPage() {
             </button>
           )}
 
-          {/* Scan QR */}
-          {upiQrUrl && (
+          {/* Scan UPI QR — most reliable on mobile */}
+          {(upiDeepLinks?.generic || upiQrUrl) && (
             <button
               data-testid="scan-qr-btn"
               onClick={() => setView('qr')}
-              className="w-full flex items-center gap-3 bg-bgCard border border-border rounded-xl px-4 py-4 text-left"
+              className="w-full flex items-center gap-3 bg-accent/10 border-2 border-accent/40 rounded-xl px-4 py-4 text-left"
             >
-              <span className="text-2xl">📷</span>
-              <div>
-                <p className="text-text font-semibold text-sm">Scan QR Code</p>
-                <p className="text-textMuted text-xs">Scan hotel's UPI QR to pay</p>
+              <span className="text-2xl">📱</span>
+              <div className="flex-1">
+                <p className="text-accent font-semibold text-sm">Scan & Pay (Recommended)</p>
+                <p className="text-textMuted text-xs">Amount pre-filled · Works with any UPI app</p>
               </div>
+              <span className="text-accent text-lg">›</span>
             </button>
           )}
 
@@ -326,20 +338,35 @@ export default function PaymentPage() {
 
       {view === 'qr' && (
         <div className="mx-4 mt-4 flex flex-col items-center gap-4">
-          <p className="text-textMuted text-sm">Scan with any UPI app</p>
-          <img
-            data-testid="upi-qr-image"
-            src={upiQrUrl}
-            alt="UPI QR Code"
-            className="w-64 h-64 rounded-xl border border-border"
-          />
-          <p className="text-textMuted text-xs">Amount: ₹{bill?.total}</p>
+          <p className="text-text font-semibold text-sm">Scan to Pay ₹{bill?.total}</p>
+          <p className="text-textMuted text-xs text-center">
+            Open any UPI app → Scan QR → Amount is pre-filled → Confirm
+          </p>
+
+          {/* Dynamic QR with amount pre-filled */}
+          {upiDeepLinks?.generic ? (
+            <div className="bg-white p-3 rounded-2xl">
+              <canvas ref={dynamicQrRef} style={{ display: 'block', borderRadius: 8 }} />
+            </div>
+          ) : upiQrUrl ? (
+            <img
+              data-testid="upi-qr-image"
+              src={upiQrUrl}
+              alt="UPI QR Code"
+              className="w-64 h-64 rounded-xl border border-border"
+            />
+          ) : null}
+
+          <p className="text-xs text-textMuted">
+            Works with GPay, PhonePe, Paytm, BHIM and all UPI apps
+          </p>
+
           <button
             onClick={() => handleRequestPayment('upi')}
             disabled={requesting}
             className="w-full py-3 bg-green/10 border border-green/40 text-green rounded-xl text-sm font-semibold disabled:opacity-50"
           >
-            {requesting ? 'Notifying…' : "I've Paid — Notify Staff"}
+            {requesting ? 'Notifying…' : "Payment Done — Notify Staff"}
           </button>
           <Button variant="secondary" onClick={() => setView('methods')}>Back</Button>
         </div>

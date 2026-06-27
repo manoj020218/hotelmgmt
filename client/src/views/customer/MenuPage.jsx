@@ -384,17 +384,32 @@ export default function MenuPage() {
         </div>
       )}
 
-      {/* ── Repeat order banner ──────────────────────────────────────────── */}
-      {lastOrder && (
-        <button
-          onClick={() => navigate('/order/' + JSON.parse(lastOrder).orderId)}
-          className="mx-4 mt-3 w-[calc(100%-2rem)] bg-bgCard border border-green/30 rounded-xl px-4 py-3 text-left"
-          data-testid="repeat-order-banner"
-        >
-          <p className="text-sm font-medium text-green">View your last order</p>
-          <p className="text-xs text-textMuted mt-0.5">Tap to track or reorder</p>
-        </button>
-      )}
+      {/* ── Active order banner — track + pay ───────────────────────────── */}
+      {lastOrder && (() => {
+        const { orderId } = JSON.parse(lastOrder)
+        return (
+          <div
+            className="mx-4 mt-3 bg-bgCard border border-green/30 rounded-xl px-4 py-3"
+            data-testid="repeat-order-banner"
+          >
+            <p className="text-sm font-medium text-green mb-2">You have an active order</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/order/' + orderId)}
+                className="flex-1 py-2 bg-bgElevated border border-border rounded-lg text-xs text-textMuted hover:text-text transition-colors"
+              >
+                Track Order
+              </button>
+              <button
+                onClick={() => navigate('/payment/' + orderId)}
+                className="flex-1 py-2 bg-accent text-bg rounded-lg text-xs font-semibold"
+              >
+                Pay Bill
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Category Tabs ─────────────────────────────────────────────────── */}
       <CategoryTabs
