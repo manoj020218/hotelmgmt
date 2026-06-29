@@ -185,6 +185,15 @@ async function assignWaiterToTable(req, res, next) {
 
     if (!table) return res.status(404).json({ error: 'Table not found' });
 
+    emitToHotel(table.hotelId, 'table:status', {
+      tableId:           table._id,
+      tableNumber:       table.tableNumber,
+      status:            table.status,
+      hasNewOrder:       table.hasNewOrder,
+      sessionBillTotal:  table.sessionBillTotal,
+      assignedWaiterName: table.assignedWaiterId?.name ?? null,
+    });
+
     res.json({ table });
   } catch (err) {
     next(err);

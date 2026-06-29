@@ -327,18 +327,25 @@ function TableCard({ table, onStatusChange, onShowQR, onShowSession, qrLoading }
       </div>
 
       {/* Status label */}
-      <p className="text-xs text-textMuted mb-2">{cfg.label}</p>
+      <p className="text-xs text-textMuted mb-1">{cfg.label}</p>
+
+      {/* Assigned waiter */}
+      {table.assignedWaiterId?.name && (
+        <p className="text-xs text-blue truncate mb-1">
+          {table.assignedWaiterId.name}
+        </p>
+      )}
 
       {/* Bill amount when bill_pending */}
       {table.status === 'bill_pending' && (
-        <p className="text-sm font-bold text-yellow mb-2">
+        <p className="text-sm font-bold text-yellow mb-1">
           ₹{(table.sessionBillTotal ?? 0).toFixed(0)}
         </p>
       )}
 
       {/* New Order pulse */}
       {table.hasNewOrder && (
-        <div className="flex items-center gap-1 mb-2">
+        <div className="flex items-center gap-1 mb-1">
           <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
           <span className="text-xs font-semibold text-accent">New Order</span>
         </div>
@@ -346,7 +353,7 @@ function TableCard({ table, onStatusChange, onShowQR, onShowSession, qrLoading }
 
       {/* Tap to view hint */}
       {isActive && (
-        <p className="text-xs text-textDim mb-2">Tap to view</p>
+        <p className="text-xs text-textDim mb-1">Tap to view</p>
       )}
 
       {/* Bottom controls */}
@@ -416,12 +423,23 @@ export default function TableManager() {
   const { on } = useSocket({ hotelId, role: 'admin', userId: user?._id })
   useEffect(() => {
     if (!hotelId) return
-    on('table:status', ({ tableId, status, hasNewOrder, sessionBillTotal }) => {
-      setTables(prev => prev.map(t =>
-        t._id?.toString() === tableId?.toString()
-          ? { ...t, status, hasNewOrder: hasNewOrder ?? t.hasNewOrder, sessionBillTotal: sessionBillTotal ?? t.sessionBillTotal }
-          : t
-      ))
+    on('table:status', ({ tableId, status, hasNewOrder, sessionBillTotal, assignedWaiterName }) => {
+      setTables(prev => prev.map(t => {
+        if (t._id?.toString() !== tableId?.toString()) return t
+        const updated = {
+          ...t,
+          status,
+          hasNewOrder:      hasNewOrder      ?? t.hasNewOrder,
+          sessionBillTotal: sessionBillTotal ?? t.sessionBillTotal,
+        }
+        // Update waiter name if included in the event payload
+        if (assignedWaiterName !== undefined) {
+          updated.assignedWaiterId = assignedWaiterName
+            ? { ...(t.assignedWaiterId ?? {}), name: assignedWaiterName }
+            : null
+        }
+        return updated
+      }))
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId])

@@ -128,9 +128,20 @@ async function placeOrder(req, res, next) {
         orderId:    order._id,
         waiterId:   assignedWaiter._id,
         waiterName: assignedWaiter.name,
+        tableId:    table._id,
       };
       emitToHotel(table.hotelId, 'order:assigned', assignPayload);
       emitToOrder(order._id,     'order:assigned', assignPayload);
+
+      // Re-emit table:status with waiter name now that assignment is known
+      emitToHotel(table.hotelId, 'table:status', {
+        tableId:            table._id,
+        tableNumber:        table.tableNumber,
+        status:             'occupied',
+        hasNewOrder:        !isNewSession,
+        sessionBillTotal:   isNewSession ? 0 : (table.sessionBillTotal ?? 0),
+        assignedWaiterName: assignedWaiter.name,
+      });
     }
 
     // FCM (fire-and-forget, never throw)

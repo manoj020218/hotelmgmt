@@ -84,7 +84,13 @@ export default function OrderStatusPage() {
   useEffect(() => {
     if (!orderId) return
     getOrder(orderId, sessionId)
-      .then(data => setOrder(data.order))
+      .then(data => {
+        setOrder(data.order)
+        // Waiter may already be assigned when page loads (e.g. page refresh)
+        if (data.order?.assignedWaiterId?.name) {
+          setWaiterName(data.order.assignedWaiterId.name)
+        }
+      })
       .catch(err => setError(err.response?.data?.error ?? 'Could not load order'))
       .finally(() => setLoading(false))
   }, [orderId])
