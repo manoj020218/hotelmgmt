@@ -376,6 +376,8 @@ export default function Settings() {
           tableVisibilityPublic:   h.settings?.tableVisibilityPublic,
           orderModificationWindow: h.settings?.orderModificationWindow,
           orderHistoryDays:        h.settings?.orderHistoryDays ?? 1,
+          hotelStartTime:          h.settings?.hotelStartTime  ?? '09:00',
+          hotelEndTime:            h.settings?.hotelEndTime    ?? '23:00',
         })
         setKitchen({
           kitchenOpen:      h.settings?.kitchenOpen,
@@ -515,6 +517,15 @@ export default function Settings() {
             <Field label="Order History Retention (days, 1–7)">
               <TextInput testid="history-days-input" type="number" value={ops.orderHistoryDays} onChange={v => setOps(p => ({ ...p, orderHistoryDays: Math.max(1, Math.min(7, Number(v))) }))} placeholder="1" />
             </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Hotel Day Start Time (IST)">
+                <TextInput testid="hotel-start-time" value={ops.hotelStartTime} onChange={v => setOps(p => ({ ...p, hotelStartTime: v }))} placeholder="09:00" />
+              </Field>
+              <Field label="Hotel Day End Time (IST)">
+                <TextInput testid="hotel-end-time" value={ops.hotelEndTime} onChange={v => setOps(p => ({ ...p, hotelEndTime: v }))} placeholder="23:00" />
+              </Field>
+            </div>
+            <p className="text-xs text-textMuted">Daily order counter resets at start time. Use 24-hour format (e.g. 09:00, 23:00).</p>
             <div className="flex items-center gap-3">
               <SaveButton testid="save-ops-btn" loading={!!busy.ops} onClick={() => save('ops', updateOperations, ops)} />
               <StatusMsg msg={msg.ops} />

@@ -6,26 +6,30 @@ import { useFCM } from '../../hooks/useFCM'
 import { Spinner } from '../../components/Spinner'
 import NotificationBell from '../../components/NotificationBell'
 
-const Dashboard    = lazy(() => import('./Dashboard'))
-const LiveOrders   = lazy(() => import('./LiveOrders'))
-const MenuManager  = lazy(() => import('./MenuManager'))
-const TableManager = lazy(() => import('./TableManager'))
-const WaiterManager = lazy(() => import('./WaiterManager'))
-const Analytics    = lazy(() => import('./Analytics'))
-const Payments     = lazy(() => import('./Payments'))
-const Feedback     = lazy(() => import('./Feedback'))
-const Settings     = lazy(() => import('./Settings'))
+const Dashboard      = lazy(() => import('./Dashboard'))
+const LiveOrders     = lazy(() => import('./LiveOrders'))
+const MenuManager    = lazy(() => import('./MenuManager'))
+const TableManager   = lazy(() => import('./TableManager'))
+const WaiterManager  = lazy(() => import('./WaiterManager'))
+const Analytics      = lazy(() => import('./Analytics'))
+const Payments       = lazy(() => import('./Payments'))
+const PaymentHistory = lazy(() => import('./PaymentHistory'))
+const OrderRecords   = lazy(() => import('./OrderRecords'))
+const Feedback       = lazy(() => import('./Feedback'))
+const Settings       = lazy(() => import('./Settings'))
 
 const NAV_ITEMS = [
-  { to: '',         icon: '📊', label: 'Dashboard'  },
-  { to: 'orders',   icon: '📋', label: 'Live Orders' },
-  { to: 'menu',     icon: '🍽️', label: 'Menu'        },
-  { to: 'tables',   icon: '🪑', label: 'Tables'      },
-  { to: 'waiters',  icon: '🙋', label: 'Waiters'     },
-  { to: 'analytics',icon: '📈', label: 'Analytics'   },
-  { to: 'payments', icon: '💳', label: 'Payments'    },
-  { to: 'feedback', icon: '⭐', label: 'Feedback'    },
-  { to: 'settings', icon: '⚙️', label: 'Settings'    },
+  { to: '',              icon: '📊', label: 'Dashboard'       },
+  { to: 'orders',        icon: '📋', label: 'Live Orders'     },
+  { to: 'menu',          icon: '🍽️', label: 'Menu'            },
+  { to: 'tables',        icon: '🪑', label: 'Tables'          },
+  { to: 'waiters',       icon: '🙋', label: 'Waiters'         },
+  { to: 'analytics',     icon: '📈', label: 'Analytics'       },
+  { to: 'payments',      icon: '💳', label: 'Payments'        },
+  { to: 'pay-history',   icon: '🧾', label: 'Pay History'     },
+  { to: 'order-records', icon: '📁', label: 'Order Records'   },
+  { to: 'feedback',      icon: '⭐', label: 'Feedback'        },
+  { to: 'settings',      icon: '⚙️', label: 'Settings'        },
 ]
 
 function Sidebar() {
@@ -101,10 +105,12 @@ export default function AdminPanel() {
               <Route path="menu"      element={<MenuManager />} />
               <Route path="tables"    element={<TableManager />} />
               <Route path="waiters"   element={<WaiterManager />} />
-              <Route path="analytics" element={<Analytics />} />
-              <Route path="payments"  element={<Payments />} />
-              <Route path="feedback"  element={<Feedback />} />
-              <Route path="settings"  element={<Settings />} />
+              <Route path="analytics"     element={<Analytics />} />
+              <Route path="payments"      element={<Payments />} />
+              <Route path="pay-history"   element={<PaymentHistory />} />
+              <Route path="order-records" element={<OrderRecords />} />
+              <Route path="feedback"      element={<Feedback />} />
+              <Route path="settings"      element={<Settings />} />
             </Routes>
           </Suspense>
         </div>

@@ -22,6 +22,8 @@ const hotelSchema = new mongoose.Schema({
     orderModificationWindow:  { type: Number,  default: 5 },
     waiterMode:               { type: String,  enum: ['table', 'manual', 'claim'], default: 'table' },
     orderHistoryDays:         { type: Number,  default: 1, min: 1, max: 7 },
+    hotelStartTime:           { type: String,  default: '09:00' },
+    hotelEndTime:             { type: String,  default: '23:00' },
   },
   fcmTopics: {
     admin:   { type: String, default: '' },

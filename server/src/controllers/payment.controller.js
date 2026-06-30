@@ -236,4 +236,29 @@ async function todayPayments(req, res, next) {
   }
 }
 
-module.exports = { requestPayment, getPendingPayments, getPaymentByOrder, markReceived, getReceipt, disputePayment, todayPayments };
+// ── GET /api/payments/history ─────────────────────────────────────────────────
+// Admin: full payment collection history with collector name + order info
+async function getPaymentHistory(req, res, next) {
+  try {
+    const { from, to } = req.query;
+
+    const match = { hotelId: req.user.hotelId };
+    if (from || to) {
+      match.createdAt = {};
+      if (from) match.createdAt.$gte = new Date(from);
+      if (to)   match.createdAt.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
+    }
+
+    const payments = await Payment.find(match)
+      .populate('receivedBy', 'name role')
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+
+    res.json({ payments });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { requestPayment, getPendingPayments, getPaymentByOrder, markReceived, getReceipt, disputePayment, todayPayments, getPaymentHistory };

@@ -25,6 +25,7 @@ const qrRoutes        = require('./routes/qr.routes');
 const feedbackRoutes  = require('./routes/feedback.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const settingsRoutes  = require('./routes/settings.routes');
+const recordsRoutes   = require('./routes/records.routes');
 
 const ALLOWED_ORIGINS = (process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173')
   .split(',').map(s => s.trim()).filter(Boolean);
@@ -75,6 +76,7 @@ function createApp() {
   app.use('/api/feedback',  feedbackRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/settings',  settingsRoutes);
+  app.use('/api/records',   recordsRoutes);
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() })

@@ -47,12 +47,39 @@ async function getPublicTables(req, res, next) {
 // ── GET /api/tables ────────────────────────────────────────────────────────────
 async function getAllTables(req, res, next) {
   try {
-    const tables = await Table.find({ hotelId: req.user.hotelId })
-      .populate('currentOrderId', 'status bill')
-      .populate('assignedWaiterId', 'name')
-      .sort({ tableNumber: 1 });
+    const [tables, hotel] = await Promise.all([
+      Table.find({ hotelId: req.user.hotelId })
+        .populate('currentOrderId', 'status bill')
+        .populate('assignedWaiterId', 'name')
+        .sort({ tableNumber: 1 }),
+      Hotel.findById(req.user.hotelId).select('settings'),
+    ]);
 
-    res.json({ tables });
+    // Compute today's operating-day start (IST)
+    const IST_MS  = 5.5 * 60 * 60 * 1000;
+    const [sh, sm] = (hotel?.settings?.hotelStartTime || '09:00').split(':').map(Number);
+    const nowUTC  = new Date();
+    const nowIST  = new Date(nowUTC.getTime() + IST_MS);
+    const boundary = new Date(nowIST);
+    boundary.setHours(sh, sm, 0, 0);
+    let dayStartUTC = new Date(boundary.getTime() - IST_MS);
+    if (dayStartUTC > nowUTC) dayStartUTC.setDate(dayStartUTC.getDate() - 1);
+
+    // One aggregate to count orders per table since day start
+    const counts = await Order.aggregate([
+      { $match: { hotelId: req.user.hotelId, createdAt: { $gte: dayStartUTC } } },
+      { $group: { _id: '$tableId', count: { $sum: 1 } } },
+    ]);
+    const countMap = {};
+    counts.forEach(c => { countMap[c._id.toString()] = c.count; });
+
+    const tablesWithCount = tables.map(t => {
+      const obj = t.toObject();
+      obj.todayOrderCount = countMap[t._id.toString()] || 0;
+      return obj;
+    });
+
+    res.json({ tables: tablesWithCount });
   } catch (err) {
     next(err);
   }

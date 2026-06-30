@@ -44,6 +44,11 @@ const orderSchema = new mongoose.Schema({
   },
   paymentId:       { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },
   rejectionReason: { type: String, default: '' },
+  placedBy: {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name:   { type: String, default: '' },
+    role:   { type: String, default: 'customer' },
+  },
   createdAt:       { type: Date, default: Date.now },
 });
 

@@ -20,3 +20,6 @@ export const getReceipt = (paymentId) =>
 
 export const getTodayPayments = () =>
   api.get('/payments/admin/today').then(r => r.data)
+
+export const getPaymentHistory = (params = {}) =>
+  api.get('/payments/history', { params }).then(r => r.data)

@@ -1,20 +1,65 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import QRCode from 'qrcode'
 import { getMyOrders, updateOrderStatus } from '../../api/order.api'
 import { toggleAvailability } from '../../api/waiter.api'
-import { getPendingPayments, markPaymentReceived } from '../../api/payment.api'
+import { getPendingPayments, markPaymentReceived, getPaymentByOrder } from '../../api/payment.api'
+import { getSettings } from '../../api/settings.api'
 import { useAuthStore } from '../../stores/authStore'
 import { useSocket } from '../../hooks/useSocket'
 import { useFCM } from '../../hooks/useFCM'
 import { Button } from '../../components/Button'
 import { OrderStatusBadge } from '../../components/Badge'
 import { Spinner } from '../../components/Spinner'
+import WaiterOrderPage from './WaiterOrderPage'
+
+// ── Hotel UPI QR Modal ────────────────────────────────────────────────────────
+
+function HotelQRModal({ amount, hotel, onClose }) {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    if (!hotel?.upiId || !canvasRef.current) return
+    const upiStr = `upi://pay?pa=${encodeURIComponent(hotel.upiId)}&pn=${encodeURIComponent(hotel.name || '')}&am=${amount}&cu=INR`
+    QRCode.toCanvas(canvasRef.current, upiStr, {
+      width: 220, margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    }).catch(() => {})
+  }, [hotel, amount])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70" />
+      <div className="relative bg-white rounded-2xl p-5 flex flex-col items-center gap-3 max-w-xs w-full" onClick={e => e.stopPropagation()}>
+        <p className="font-bold text-gray-800 text-base">Show QR to Customer</p>
+        <p className="text-2xl font-bold text-gray-900">₹{amount}</p>
+
+        {hotel?.upiId ? (
+          <canvas ref={canvasRef} style={{ borderRadius: 8 }} />
+        ) : hotel?.upiQrUrl ? (
+          <img src={hotel.upiQrUrl} alt="Hotel UPI QR" className="w-48 h-48 rounded-xl border" />
+        ) : (
+          <p className="text-sm text-gray-500">No UPI QR configured in settings</p>
+        )}
+
+        {hotel?.upiId && (
+          <p className="text-xs text-gray-500 text-center">Amount pre-filled · Customer scans from any UPI app</p>
+        )}
+
+        <button onClick={onClose} className="w-full py-2 bg-gray-100 rounded-xl text-sm text-gray-700 font-medium">
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ── Payment Collect Card ───────────────────────────────────────────────────────
 
-function PaymentCollectCard({ payment, onConfirmed }) {
+function PaymentCollectCard({ payment, hotel, onConfirmed }) {
   const [method,     setMethod]     = useState(payment.method ?? 'cash')
   const [confirming, setConfirming] = useState(false)
+  const [showQR,     setShowQR]     = useState(false)
 
   const handleConfirm = async () => {
     setConfirming(true)
@@ -37,6 +82,17 @@ function PaymentCollectCard({ payment, onConfirmed }) {
         </div>
         <p className="text-accent font-bold text-lg">₹{payment.amount}</p>
       </div>
+
+      {/* Collect Amount — shows hotel UPI QR */}
+      {(hotel?.upiId || hotel?.upiQrUrl) && (
+        <button
+          onClick={() => setShowQR(true)}
+          className="w-full py-2 bg-accent/10 border border-accent/40 text-accent rounded-xl text-sm font-semibold hover:bg-accent/20 transition-colors"
+        >
+          Show UPI QR to Customer
+        </button>
+      )}
+
       <select
         value={method}
         onChange={e => setMethod(e.target.value)}
@@ -55,6 +111,10 @@ function PaymentCollectCard({ payment, onConfirmed }) {
       >
         {confirming ? 'Confirming…' : 'Mark Payment Collected ✓'}
       </button>
+
+      {showQR && (
+        <HotelQRModal amount={payment.amount} hotel={hotel} onClose={() => setShowQR(false)} />
+      )}
     </div>
   )
 }
@@ -171,6 +231,13 @@ export default function WaiterApp() {
   const [readyOrderIds,   setReadyOrderIds]   = useState(new Set())
   const [rejectTarget,    setRejectTarget]    = useState(null)
   const [pendingPayments, setPendingPayments] = useState([])
+  const [hotel,           setHotel]           = useState(null)
+  const [showNewOrder,    setShowNewOrder]    = useState(false)
+
+  // Load hotel settings for UPI QR
+  useEffect(() => {
+    getSettings().then(d => setHotel(d.hotel)).catch(() => {})
+  }, [])
 
   // ── Load orders + pending payments ───────────────────────────────────────────
   const loadOrders = useCallback(async () => {
@@ -305,9 +372,10 @@ export default function WaiterApp() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border">
+      <div className="flex border-b border-border overflow-x-auto">
         {[
           { key: 'active',    label: `My Orders (${activeOrders.length})` },
+          { key: 'neworder',  label: '+ New Order' },
           { key: 'payments',  label: `Payments${pendingPayments.length ? ` (${pendingPayments.length})` : ''}` },
           { key: 'completed', label: 'Completed' },
           { key: 'rating',    label: 'My Rating' },
@@ -327,6 +395,16 @@ export default function WaiterApp() {
           </button>
         ))}
       </div>
+
+      {/* New Order */}
+      {tab === 'neworder' && (
+        <div className="flex-1 overflow-y-auto">
+          <WaiterOrderPage
+            onBack={() => setTab('active')}
+            onOrderPlaced={() => { loadOrders(); setTab('active') }}
+          />
+        </div>
+      )}
 
       {/* Active Orders */}
       {tab === 'active' && (
@@ -354,7 +432,7 @@ export default function WaiterApp() {
             <p className="text-center text-textMuted py-12">No pending payments</p>
           ) : (
             pendingPayments.map(p => (
-              <PaymentCollectCard key={p._id} payment={p} onConfirmed={handlePaymentConfirmed} />
+              <PaymentCollectCard key={p._id} payment={p} hotel={hotel} onConfirmed={handlePaymentConfirmed} />
             ))
           )}
         </div>

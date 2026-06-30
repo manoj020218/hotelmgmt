@@ -382,6 +382,11 @@ function TableCard({ table, onStatusChange, onShowQR, onShowSession, qrLoading }
         </button>
       </div>
 
+      {/* Daily order counter */}
+      {table.todayOrderCount > 0 && (
+        <p className="text-xs text-textDim mt-1">{table.todayOrderCount} order{table.todayOrderCount > 1 ? 's' : ''} today</p>
+      )}
+
       {table.notes?.length > 0 && (
         <div className="mt-2 space-y-0.5">
           {table.notes.map((n, i) => (
